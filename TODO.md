@@ -29,8 +29,11 @@
 - [x] **Herança e inventário**
   - A Herança da ficha contém somente a habilidade ativa da classe.
   - Armas, magias e armadura aparecem em um Inventário separado.
-  - O jogador pode alterar a quantidade de dados de um item entre 1 e 5.
+  - O jogador pode alterar a quantidade de dados de armas e escudos entre 1 e 5.
   - O jogador pode alterar separadamente o tipo de dado entre D4, D6, D8, D10 e D12.
+  - O cajado do Mago e o selo sagrado do Profeta permitem alterar o limite máximo de magias ou feitiços.
+  - Mago e Profeta podem cadastrar novas magias com nome e dados de dano.
+  - A armadura permite alterar separadamente o valor da redução e o tipo de dano reduzido.
 
 - [x] **Ficha final pronta para consulta**
   - O jogador informa nome e idade.

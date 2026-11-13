@@ -206,12 +206,28 @@ function parseDice(detail) {
   return match ? { count: Number(match[1]), type: `D${match[2]}` } : null;
 }
 
+function parseSpellSlots(detail) {
+  const match = String(detail).match(/máx\.\s*(\d+)\s*(magias|feitiços)/i);
+  return match ? { count: Number(match[1]), label: match[2] } : null;
+}
+
+function parseArmor(detail) {
+  const match = String(detail).match(/-(\d+)\s+(.+)/i);
+  if (!match) return { reduction: 0, type: 'ataques físicos' };
+  const rawType = match[2].toLowerCase();
+  const type = rawType.includes('ataques mágicos') && rawType.includes('feitiçaria') ? 'ataques mágicos e de feitiçaria' : rawType.includes('físic') ? 'ataques físicos' : rawType.includes('mágic') ? 'ataques mágicos' : rawType.includes('feitiçaria') ? 'ataques de feitiçaria' : match[2];
+  return { reduction: Number(match[1]), type };
+}
+
 function renderInventory() {
   const diceTypes = ['D4', 'D6', 'D8', 'D10', 'D12'];
+  const spellSlotOptions = [1, 2, 3, 4, 5];
+  const armorTypes = ['ataques físicos', 'ataques mágicos', 'ataques de feitiçaria', 'ataques mágicos e de feitiçaria'];
+  $('#add-spell-button').hidden = !['mago', 'profeta'].includes(playerCharacter.classId);
   $('#sheet-inventory').innerHTML = playerCharacter.inventory.map((item, index) => {
     const dice = item.dice;
-    const currentDetail = dice ? `${dice.count}${dice.type}` : item.detail;
-    const editor = dice ? `<div class="damage-editor"><label>Dados</label><select class="dice-count" data-inventory-index="${index}" aria-label="Quantidade de dados de ${item.name}">${[1, 2, 3, 4, 5].map((value) => `<option value="${value}" ${dice.count === value ? 'selected' : ''}>${value}</option>`).join('')}</select><span>×</span><select class="dice-type" data-inventory-index="${index}" aria-label="Tipo de dado de ${item.name}">${diceTypes.map((type) => `<option value="${type}" ${dice.type === type ? 'selected' : ''}>${type}</option>`).join('')}</select></div>` : '<span class="inventory-static">Não editável</span>';
+    const currentDetail = item.armor ? `-${item.armor.reduction} ${item.armor.type}` : item.spellSlots ? `máx. ${item.spellSlots.count} ${item.spellSlots.label}` : dice ? `${dice.count}${dice.type}` : item.detail;
+    const editor = dice ? `<div class="damage-editor"><label>Dados</label><select class="dice-count" data-inventory-index="${index}" aria-label="Quantidade de dados de ${item.name}">${[1, 2, 3, 4, 5].map((value) => `<option value="${value}" ${dice.count === value ? 'selected' : ''}>${value}</option>`).join('')}</select><span>×</span><select class="dice-type" data-inventory-index="${index}" aria-label="Tipo de dado de ${item.name}">${diceTypes.map((type) => `<option value="${type}" ${dice.type === type ? 'selected' : ''}>${type}</option>`).join('')}</select></div>` : item.spellSlots ? `<div class="damage-editor"><label>Limite</label><select class="spell-slots" data-inventory-index="${index}" aria-label="Quantidade máxima de ${item.name}">${spellSlotOptions.map((value) => `<option value="${value}" ${item.spellSlots.count === value ? 'selected' : ''}>${value}</option>`).join('')}</select><span>${item.spellSlots.label}</span></div>` : item.armor ? `<div class="damage-editor armor-editor"><label>Redução</label><select class="armor-reduction" data-inventory-index="${index}" aria-label="Redução da armadura">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => `<option value="${value}" ${item.armor.reduction === value ? 'selected' : ''}>-${value}</option>`).join('')}</select><select class="armor-type" data-inventory-index="${index}" aria-label="Tipo de dano reduzido">${armorTypes.map((type) => `<option value="${type}" ${item.armor.type === type ? 'selected' : ''}>${type}</option>`).join('')}</select></div>` : '<span class="inventory-static">Não editável</span>';
     return `<div class="inventory-item"><div class="inventory-item-icon">${item.type === 'Armadura' ? '◈' : item.type === 'Magia' ? '✧' : '◇'}</div><div class="inventory-item-copy"><span class="inventory-kind">${item.type}</span><strong>${item.name}</strong><small>${currentDetail}</small></div>${editor}</div>`;
   }).join('');
   $('#sheet-inventory').querySelectorAll('select').forEach((select) => {
@@ -219,6 +235,9 @@ function renderInventory() {
       const item = playerCharacter.inventory[Number(select.dataset.inventoryIndex)];
       if (select.classList.contains('dice-count')) item.dice.count = Number(select.value);
       if (select.classList.contains('dice-type')) item.dice.type = select.value;
+      if (select.classList.contains('spell-slots')) item.spellSlots.count = Number(select.value);
+      if (select.classList.contains('armor-reduction')) item.armor.reduction = Number(select.value);
+      if (select.classList.contains('armor-type')) item.armor.type = select.value;
       renderInventory();
     });
   });
@@ -253,7 +272,8 @@ form.addEventListener('submit', (event) => {
     xp: 0,
     pendingLevelUps: 0,
     status: Object.fromEntries(Object.entries(state.selectedClass.stats).map(([label, value]) => [label, typeof value === 'number' ? value : 0])),
-    inventory: [...state.selectedClass.equipment.map((item) => ({ ...item, dice: parseDice(item.detail) })), ...state.selectedClass.spells.map((spell) => ({ type: 'Magia', name: spell.name, detail: spell.detail, dice: null })), { type: 'Armadura', name: 'Armadura da classe', detail: state.selectedClass.armor, dice: null }]
+    classId: state.selectedClass.id,
+    inventory: [...state.selectedClass.equipment.map((item) => ({ ...item, dice: parseDice(item.detail), spellSlots: parseSpellSlots(item.detail) })), ...state.selectedClass.spells.map((spell) => ({ type: 'Magia', name: spell.name, detail: spell.detail, dice: parseDice(spell.detail) })), { type: 'Armadura', name: 'Armadura da classe', detail: state.selectedClass.armor, dice: null, armor: parseArmor(state.selectedClass.armor) }]
   };
   renderSheet(name, age);
   $('.app-layout').hidden = true;
@@ -289,6 +309,28 @@ $('#xp-form').addEventListener('submit', (event) => {
 
 document.querySelectorAll('[data-close-modal]').forEach((button) => {
   button.addEventListener('click', () => { $(`#${button.dataset.closeModal}`).hidden = true; });
+});
+
+$('#add-spell-button').addEventListener('click', () => {
+  $('#spell-error').textContent = '';
+  $('#spell-name').value = '';
+  $('#spell-dice-count').value = '1';
+  $('#spell-dice-type').value = 'D8';
+  $('#spell-modal').hidden = false;
+  $('#spell-name').focus();
+});
+
+$('#spell-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const name = $('#spell-name').value.trim();
+  if (!name) {
+    $('#spell-error').textContent = 'Informe o nome da magia ou feitiço.';
+    return;
+  }
+  const dice = { count: Number($('#spell-dice-count').value), type: $('#spell-dice-type').value };
+  playerCharacter.inventory.push({ type: 'Magia', name, detail: `${dice.count}${dice.type} dano`, dice });
+  $('#spell-modal').hidden = true;
+  renderInventory();
 });
 
 function renderMasterGrid() {
