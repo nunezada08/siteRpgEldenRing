@@ -201,6 +201,29 @@ function registerExperience(amount) {
   if (playerCharacter.pendingLevelUps > 0) openLevelUpModal();
 }
 
+function parseDice(detail) {
+  const match = String(detail).match(/([1-5])D(4|6|8|10|12)/i);
+  return match ? { count: Number(match[1]), type: `D${match[2]}` } : null;
+}
+
+function renderInventory() {
+  const diceTypes = ['D4', 'D6', 'D8', 'D10', 'D12'];
+  $('#sheet-inventory').innerHTML = playerCharacter.inventory.map((item, index) => {
+    const dice = item.dice;
+    const currentDetail = dice ? `${dice.count}${dice.type}` : item.detail;
+    const editor = dice ? `<div class="damage-editor"><label>Dados</label><select class="dice-count" data-inventory-index="${index}" aria-label="Quantidade de dados de ${item.name}">${[1, 2, 3, 4, 5].map((value) => `<option value="${value}" ${dice.count === value ? 'selected' : ''}>${value}</option>`).join('')}</select><span>×</span><select class="dice-type" data-inventory-index="${index}" aria-label="Tipo de dado de ${item.name}">${diceTypes.map((type) => `<option value="${type}" ${dice.type === type ? 'selected' : ''}>${type}</option>`).join('')}</select></div>` : '<span class="inventory-static">Não editável</span>';
+    return `<div class="inventory-item"><div class="inventory-item-icon">${item.type === 'Armadura' ? '◈' : item.type === 'Magia' ? '✧' : '◇'}</div><div class="inventory-item-copy"><span class="inventory-kind">${item.type}</span><strong>${item.name}</strong><small>${currentDetail}</small></div>${editor}</div>`;
+  }).join('');
+  $('#sheet-inventory').querySelectorAll('select').forEach((select) => {
+    select.addEventListener('change', () => {
+      const item = playerCharacter.inventory[Number(select.dataset.inventoryIndex)];
+      if (select.classList.contains('dice-count')) item.dice.count = Number(select.value);
+      if (select.classList.contains('dice-type')) item.dice.type = select.value;
+      renderInventory();
+    });
+  });
+}
+
 function renderSheet(characterName, age) {
   const characterClass = state.selectedClass;
   const currentLife = playerCharacter.status.Vitalidade * 2;
@@ -211,10 +234,9 @@ function renderSheet(characterName, age) {
   $('#sheet-age').textContent = age;
   renderProgression();
   renderStatusGrid();
+  renderInventory();
   $('#sheet-attributes').innerHTML = attributes.map((attribute) => `<div class="sheet-attribute"><span>${attribute}</span><strong>${state.allocation[attribute]}</strong><small>${state.allocation[attribute]} dado${state.allocation[attribute] === 1 ? '' : 's'} por teste</small></div>`).join('');
-  const equipment = characterClass.equipment.map((item) => `<div class="sheet-item"><b>${item.type}:</b> ${item.name}<span>${item.detail}</span></div>`).join('');
-  const spells = characterClass.spells.length ? `<div class="sheet-section"><h4>Magias / feitiços</h4><div class="sheet-items">${characterClass.spells.map((spell) => `<div class="sheet-item"><b>${spell.name}</b><span>${spell.detail}</span></div>`).join('')}</div></div>` : '';
-  $('#sheet-class-content').innerHTML = `<div class="sheet-section"><h4>Equipamento inicial</h4><div class="sheet-items">${equipment}</div><p style="margin-top: 12px"><strong>Armadura:</strong> ${characterClass.armor}</p></div>${spells}<div class="sheet-section"><h4>Habilidade ativa · ${characterClass.ability.cooldown}</h4><p><strong>${characterClass.ability.title}.</strong> ${characterClass.ability.description}</p></div>`;
+  $('#sheet-class-content').innerHTML = `<div class="sheet-section"><h4>Habilidade ativa · ${characterClass.ability.cooldown}</h4><p><strong>${characterClass.ability.title}.</strong> ${characterClass.ability.description}</p></div>`;
 }
 
 form.addEventListener('submit', (event) => {
@@ -230,7 +252,8 @@ form.addEventListener('submit', (event) => {
     level: 1,
     xp: 0,
     pendingLevelUps: 0,
-    status: Object.fromEntries(Object.entries(state.selectedClass.stats).map(([label, value]) => [label, typeof value === 'number' ? value : 0]))
+    status: Object.fromEntries(Object.entries(state.selectedClass.stats).map(([label, value]) => [label, typeof value === 'number' ? value : 0])),
+    inventory: [...state.selectedClass.equipment.map((item) => ({ ...item, dice: parseDice(item.detail) })), ...state.selectedClass.spells.map((spell) => ({ type: 'Magia', name: spell.name, detail: spell.detail, dice: null })), { type: 'Armadura', name: 'Armadura da classe', detail: state.selectedClass.armor, dice: null }]
   };
   renderSheet(name, age);
   $('.app-layout').hidden = true;

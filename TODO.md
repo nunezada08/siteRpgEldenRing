@@ -24,6 +24,13 @@
   - O custo para subir segue 100 XP do level 1 para 2, 150 XP do 2 para 3 e aumenta 50 XP por level.
   - Ao alcançar o custo, o site exige a escolha de um status para receber +1 antes de confirmar o novo level.
   - A escolha de evolução é feita apenas entre os status de classe, nunca entre os atributos de teste.
+  - A Vida é sempre calculada como Vitalidade × 2 e acompanha os aumentos de Vitalidade.
+
+- [x] **Herança e inventário**
+  - A Herança da ficha contém somente a habilidade ativa da classe.
+  - Armas, magias e armadura aparecem em um Inventário separado.
+  - O jogador pode alterar a quantidade de dados de um item entre 1 e 5.
+  - O jogador pode alterar separadamente o tipo de dado entre D4, D6, D8, D10 e D12.
 
 - [x] **Ficha final pronta para consulta**
   - O jogador informa nome e idade.
