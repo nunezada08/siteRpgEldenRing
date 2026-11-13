@@ -9,6 +9,7 @@
   - O jogador pode escolher entre Orc, Mago, Profeta, Soldado e Bandido.
   - A tela mostra vida, status, itens iniciais, armaduras, ataques, magias e habilidade ativa conforme o documento do RPG.
   - A interface inclui um espaço reservado para a futura imagem da raça de cada classe.
+  - Os textos pequenos e danos das armas foram ampliados para melhorar a leitura.
 
 - [x] **Status e atributos com leitura visual**
   - Os status de cada classe aparecem com valores e barras visuais.
@@ -17,9 +18,16 @@
   - Um gráfico SVG com seis pontas mostra visualmente a distribuição dos atributos e atualiza junto dos controles.
   - Cada ponto indica quantos dados serão lançados nos testes.
 
+- [x] **Progressão da ficha**
+  - Todo personagem começa no level 1 com 0 XP.
+  - O botão Adicionar XP permite registrar a experiência recebida durante a campanha.
+  - O custo para subir segue 100 XP do level 1 para 2, 150 XP do 2 para 3 e aumenta 50 XP por level.
+  - Ao alcançar o custo, o site exige a escolha de um status para receber +1 antes de confirmar o novo level.
+  - A escolha de evolução é feita apenas entre os status de classe, nunca entre os atributos de teste.
+
 - [x] **Ficha final pronta para consulta**
   - O jogador informa nome e idade.
-  - A ficha combina dados pessoais, classe, atributos e todo o conteúdo predefinido da classe.
+  - A ficha combina dados pessoais, classe, atributos, status, level, XP e conteúdo predefinido da classe.
   - O jogador pode voltar e ajustar a criação antes de gerar novamente.
 
 - [x] **Atmosfera visual responsiva**

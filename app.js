@@ -33,6 +33,7 @@ const classes = [
 
 const attributes = ['Força', 'Agilidade', 'Percepção', 'Foco', 'Furtividade', 'Iniciativa'];
 const state = { selectedClass: classes[0], allocation: Object.fromEntries(attributes.map((attribute) => [attribute, 1])) };
+let playerCharacter = null;
 
 const $ = (selector) => document.querySelector(selector);
 const classList = $('#class-list');
@@ -139,6 +140,66 @@ function renderAttributes() {
 function clearError() { formError.textContent = ''; }
 function showError(message) { formError.textContent = message; }
 
+function xpToNextLevel(level) {
+  return 100 + ((level - 1) * 50);
+}
+
+function renderStatusGrid() {
+  const status = playerCharacter.status;
+  $('#sheet-status').innerHTML = Object.entries(status).map(([label, value]) => {
+    const meter = Math.max(0, Math.min(100, (value / 35) * 100));
+    return `<div class="sheet-status-row"><div><span>${label}</span><strong>${value}</strong></div><i><b style="width:${meter}%"></b></i></div>`;
+  }).join('');
+}
+
+function renderProgression() {
+  const level = playerCharacter.level;
+  const needed = xpToNextLevel(level);
+  const percentage = Math.max(0, Math.min(100, (playerCharacter.xp / needed) * 100));
+  $('#sheet-level').textContent = level;
+  $('#sheet-xp').textContent = playerCharacter.xp;
+  $('#sheet-xp-needed').textContent = needed;
+  $('#sheet-xp-bar').style.width = `${percentage}%`;
+  $('#sheet-xp-caption').textContent = `${needed - playerCharacter.xp} XP para o próximo level`;
+}
+
+function renderLevelUpOptions() {
+  $('#status-upgrade-options').innerHTML = Object.entries(playerCharacter.status).map(([label, value]) => `<button class="status-upgrade-option" type="button" data-status="${label}"><span class="upgrade-symbol">＋</span><span><strong>${label}</strong><small>${value} → ${value + 1}</small></span><b>Escolher</b></button>`).join('');
+  $('#status-upgrade-options').querySelectorAll('.status-upgrade-option').forEach((button) => {
+    button.addEventListener('click', () => {
+      const statusName = button.dataset.status;
+      playerCharacter.status[statusName] += 1;
+      playerCharacter.level += 1;
+      playerCharacter.pendingLevelUps -= 1;
+      renderSheet(playerCharacter.name, playerCharacter.age);
+      if (playerCharacter.pendingLevelUps > 0) {
+        openLevelUpModal();
+      } else {
+        $('#level-up-modal').hidden = true;
+      }
+    });
+  });
+}
+
+function openLevelUpModal() {
+  renderLevelUpOptions();
+  $('#level-up-modal').hidden = false;
+}
+
+function registerExperience(amount) {
+  playerCharacter.xp += amount;
+  while (true) {
+    const pendingLevel = playerCharacter.level + playerCharacter.pendingLevelUps;
+    const required = xpToNextLevel(pendingLevel);
+    if (playerCharacter.xp < required) break;
+    playerCharacter.xp -= required;
+    playerCharacter.pendingLevelUps += 1;
+  }
+  $('#xp-modal').hidden = true;
+  renderSheet(playerCharacter.name, playerCharacter.age);
+  if (playerCharacter.pendingLevelUps > 0) openLevelUpModal();
+}
+
 function renderSheet(characterName, age) {
   const characterClass = state.selectedClass;
   $('#sheet-name').textContent = characterName;
@@ -146,10 +207,12 @@ function renderSheet(characterName, age) {
   $('#sheet-life').textContent = characterClass.life;
   $('#sheet-class').textContent = characterClass.name;
   $('#sheet-age').textContent = age;
+  renderProgression();
+  renderStatusGrid();
   $('#sheet-attributes').innerHTML = attributes.map((attribute) => `<div class="sheet-attribute"><span>${attribute}</span><strong>${state.allocation[attribute]}</strong><small>${state.allocation[attribute]} dado${state.allocation[attribute] === 1 ? '' : 's'} por teste</small></div>`).join('');
   const equipment = characterClass.equipment.map((item) => `<div class="sheet-item"><b>${item.type}:</b> ${item.name}<span>${item.detail}</span></div>`).join('');
   const spells = characterClass.spells.length ? `<div class="sheet-section"><h4>Magias / feitiços</h4><div class="sheet-items">${characterClass.spells.map((spell) => `<div class="sheet-item"><b>${spell.name}</b><span>${spell.detail}</span></div>`).join('')}</div></div>` : '';
-  $('#sheet-class-content').innerHTML = `<div class="sheet-section"><h4>Equipamento inicial</h4><div class="sheet-items">${equipment}</div><p style="margin-top: 12px"><strong>Armadura:</strong> ${characterClass.armor}</p></div>${spells}<div class="sheet-section"><h4>Habilidade ativa · ${characterClass.ability.cooldown}</h4><p><strong>${characterClass.ability.title}.</strong> ${characterClass.ability.description}</p></div><div class="sheet-section"><h4>Status de classe</h4><p>${Object.entries(characterClass.stats).map(([label, value]) => `${label}: ${value}`).join('  ·  ')}</p></div>`;
+  $('#sheet-class-content').innerHTML = `<div class="sheet-section"><h4>Equipamento inicial</h4><div class="sheet-items">${equipment}</div><p style="margin-top: 12px"><strong>Armadura:</strong> ${characterClass.armor}</p></div>${spells}<div class="sheet-section"><h4>Habilidade ativa · ${characterClass.ability.cooldown}</h4><p><strong>${characterClass.ability.title}.</strong> ${characterClass.ability.description}</p></div>`;
 }
 
 form.addEventListener('submit', (event) => {
@@ -159,6 +222,14 @@ form.addEventListener('submit', (event) => {
   if (!name) { showError('Dê um nome ao personagem antes de gerar a ficha.'); $('#character-name').focus(); return; }
   if (!age || age < 1) { showError('Informe uma idade válida para continuar.'); $('#character-age').focus(); return; }
   if (remainingPoints() !== 0) { showError(`Distribua os ${remainingPoints()} ponto${remainingPoints() === 1 ? '' : 's'} restante${remainingPoints() === 1 ? '' : 's'} antes de gerar.`); return; }
+  playerCharacter = {
+    name,
+    age,
+    level: 1,
+    xp: 0,
+    pendingLevelUps: 0,
+    status: Object.fromEntries(Object.entries(state.selectedClass.stats).map(([label, value]) => [label, typeof value === 'number' ? value : 0]))
+  };
   renderSheet(name, age);
   $('.app-layout').hidden = true;
   $('.site-footer').hidden = true;
@@ -171,6 +242,28 @@ $('#back-button').addEventListener('click', () => {
   $('.app-layout').hidden = false;
   $('.site-footer').hidden = false;
   window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+$('#add-xp-button').addEventListener('click', () => {
+  if (playerCharacter.pendingLevelUps > 0) return openLevelUpModal();
+  $('#xp-error').textContent = '';
+  $('#xp-amount').value = '';
+  $('#xp-modal').hidden = false;
+  $('#xp-amount').focus();
+});
+
+$('#xp-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const amount = Number($('#xp-amount').value);
+  if (!Number.isInteger(amount) || amount < 1) {
+    $('#xp-error').textContent = 'Informe uma quantidade inteira de XP maior que zero.';
+    return;
+  }
+  registerExperience(amount);
+});
+
+document.querySelectorAll('[data-close-modal]').forEach((button) => {
+  button.addEventListener('click', () => { $(`#${button.dataset.closeModal}`).hidden = true; });
 });
 
 function renderMasterGrid() {
