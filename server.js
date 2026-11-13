@@ -74,11 +74,13 @@ async function handleApi(req, res, url) {
     }
     if (req.method === 'PATCH' && roomMatch[2] && role === 'master') {
       const body = await parseBody(req);
-      const [currentRows] = await pool.query('SELECT sheet_json FROM room_players WHERE room_id = ? AND player_token = ? LIMIT 1', [room.id, roomMatch[2]]);
-      const previous = currentRows[0]?.sheet_json ? (typeof currentRows[0].sheet_json === 'string' ? JSON.parse(currentRows[0].sheet_json) : currentRows[0].sheet_json) : null;
+      const playerId = Number(roomMatch[2]);
+      const [currentRows] = await pool.query('SELECT id, sheet_json, name FROM room_players WHERE room_id = ? AND id = ? LIMIT 1', [room.id, playerId]);
+      if (!currentRows.length) return fail(res, 404, 'Jogador não encontrado.');
+      const previous = currentRows[0].sheet_json ? (typeof currentRows[0].sheet_json === 'string' ? JSON.parse(currentRows[0].sheet_json) : currentRows[0].sheet_json) : null;
       const incoming = body.sheet || {};
       
-      // Verify only master can modify level, status, and pendingLevelUps
+      // Somente o Mestre pode alterar level, status e pendingLevelUps
       if (previous) {
         const previousLevel = Number(previous.level) || 1;
         const nextLevel = Number(incoming.level) || previousLevel;
@@ -89,7 +91,20 @@ async function handleApi(req, res, url) {
         if (!validLevelState) return fail(res, 403, 'Somente o Mestre pode alterar level e status.');
       }
       
-      const [result] = await pool.query('UPDATE room_players SET sheet_json = ? WHERE room_id = ? AND id = ?', [JSON.stringify(body.sheet || null), room.id, Number(roomMatch[2])]);
+      const updates = [];
+      const params = [];
+      if (body.name !== undefined) {
+        updates.push('name = ?');
+        params.push(safeName(body.name, currentRows[0].name));
+      }
+      if (body.sheet !== undefined) {
+        updates.push('sheet_json = ?');
+        params.push(JSON.stringify(body.sheet || null));
+      }
+      if (updates.length === 0) return fail(res, 400, 'Nenhum campo para atualizar.');
+      updates.push('last_seen = CURRENT_TIMESTAMP');
+      params.push(room.id, playerId);
+      const [result] = await pool.query(`UPDATE room_players SET ${updates.join(', ')} WHERE room_id = ? AND id = ?`, params);
       if (!result.affectedRows) return fail(res, 404, 'Jogador não encontrado.');
       return ok(res, { saved: true });
     }
