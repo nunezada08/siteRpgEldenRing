@@ -293,3 +293,5 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; opa
 @media (max-width: 760px) { .inventory-heading .secondary-button { margin-left: 0; }.armor-editor select:last-child { max-width: none; } }
 
 .magic-panel { border: 1px solid rgba(184,167,105,.3); background: linear-gradient(135deg, rgba(86,76,44,.12), rgba(17,23,22,.68)); margin-top: 15px; padding: 23px 24px; }.magic-panel .inventory-heading { border-bottom: 1px solid var(--line); padding-bottom: 17px; }.magic-panel .inventory-heading h3 { color: var(--gold-bright); }.magic-panel .inventory-item-icon { border-color: rgba(210,193,124,.55); color: var(--gold-bright); }.magic-panel .inventory-kind { color: var(--gold); }.magic-panel .inventory-list { margin-top: 14px; }
+
+.magic-panel .secondary-button:disabled { border-color: rgba(167,157,113,.18); color: var(--gold-muted); background: rgba(255,255,255,.03); cursor: not-allowed; transform: none; }

@@ -219,6 +219,10 @@ function parseArmor(detail) {
   return { reduction: Number(match[1]), type };
 }
 
+function getSpellCapacity() {
+  return playerCharacter.inventory.find((item) => item.spellSlots)?.spellSlots.count || 0;
+}
+
 function renderInventoryItem(item, index, diceTypes, spellSlotOptions, armorTypes) {
   const dice = item.dice;
   const currentDetail = item.armor ? `-${item.armor.reduction} ${item.armor.type}` : item.spellSlots ? `máx. ${item.spellSlots.count} ${item.spellSlots.label}` : dice ? `${dice.count}${dice.type}` : item.detail;
@@ -233,9 +237,13 @@ function renderInventory() {
   const equipment = playerCharacter.inventory.map((item, index) => ({ item, index })).filter(({ item }) => item.type !== 'Magia');
   const spells = playerCharacter.inventory.map((item, index) => ({ item, index })).filter(({ item }) => item.type === 'Magia');
   const isArcaneClass = ['mago', 'profeta'].includes(playerCharacter.classId);
+  const spellCapacity = getSpellCapacity();
+  const spellLimitReached = spells.length >= spellCapacity;
   $('#magic-panel').hidden = !isArcaneClass;
   $('#magic-title').textContent = playerCharacter.classId === 'profeta' ? 'Feitiços' : 'Magias';
-  $('#add-spell-button').textContent = playerCharacter.classId === 'profeta' ? '+ Adicionar feitiço' : '+ Adicionar magia';
+  $('#magic-hint').textContent = `${spells.length} / ${spellCapacity} espaços usados`;
+  $('#add-spell-button').textContent = spellLimitReached ? 'Limite atingido' : (playerCharacter.classId === 'profeta' ? '+ Adicionar feitiço' : '+ Adicionar magia');
+  $('#add-spell-button').disabled = spellLimitReached;
   $('#sheet-inventory').innerHTML = equipment.map(({ item, index }) => renderInventoryItem(item, index, diceTypes, spellSlotOptions, armorTypes)).join('');
   $('#sheet-spells').innerHTML = spells.map(({ item, index }) => renderInventoryItem(item, index, diceTypes, spellSlotOptions, armorTypes)).join('');
   document.querySelectorAll('#sheet-inventory select, #sheet-spells select').forEach((select) => {
@@ -320,6 +328,7 @@ document.querySelectorAll('[data-close-modal]').forEach((button) => {
 });
 
 $('#add-spell-button').addEventListener('click', () => {
+  if (playerCharacter.inventory.filter((item) => item.type === 'Magia').length >= getSpellCapacity()) return;
   $('#spell-error').textContent = '';
   $('#spell-name').value = '';
   $('#spell-dice-count').value = '1';
@@ -333,6 +342,12 @@ $('#spell-form').addEventListener('submit', (event) => {
   const name = $('#spell-name').value.trim();
   if (!name) {
     $('#spell-error').textContent = 'Informe o nome da magia ou feitiço.';
+    return;
+  }
+  if (playerCharacter.inventory.filter((item) => item.type === 'Magia').length >= getSpellCapacity()) {
+    $('#spell-error').textContent = `O limite de ${getSpellCapacity()} poderes já foi atingido. Aumente a capacidade do cajado ou selo sagrado.`;
+    $('#spell-modal').hidden = true;
+    renderInventory();
     return;
   }
   const dice = { count: Number($('#spell-dice-count').value), type: $('#spell-dice-type').value };

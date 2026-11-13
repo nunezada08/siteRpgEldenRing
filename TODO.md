@@ -36,6 +36,8 @@
   - A armadura permite alterar separadamente o valor da redução e o tipo de dano reduzido.
   - O Mago possui uma seção própria chamada Magias.
   - O Profeta possui uma seção própria chamada Feitiços.
+  - O sistema bloqueia o cadastro quando a capacidade máxima de magias ou feitiços foi atingida.
+  - A capacidade alterada do cajado ou selo é aplicada imediatamente ao limite.
 
 - [x] **Ficha final pronta para consulta**
   - O jogador informa nome e idade.
