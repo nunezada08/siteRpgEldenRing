@@ -56,3 +56,9 @@
 - [x] **Atmosfera visual responsiva**
   - A interface usa uma estética sombria de fantasia, com cores escuras inspiradas em Elden Ring.
   - O layout funciona em telas grandes e pequenas usando HTML, CSS e JavaScript.
+
+- [x] **Habilidade Ultimate com cooldown**
+  - A ficha possui um botão Usar Ult.
+  - Depois do uso, o botão fica bloqueado por 30 minutos.
+  - Um contador regressivo mostra o tempo restante até a habilidade ficar pronta novamente.
+  - O cooldown continua correto mesmo se a página for recarregada no mesmo navegador.

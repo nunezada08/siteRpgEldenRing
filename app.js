@@ -34,6 +34,8 @@ const classes = [
 const attributes = ['Força', 'Agilidade', 'Percepção', 'Foco', 'Furtividade', 'Iniciativa'];
 const state = { selectedClass: classes[0], allocation: Object.fromEntries(attributes.map((attribute) => [attribute, 1])) };
 let playerCharacter = null;
+let ultTimer = null;
+const ULT_COOLDOWN_MS = 30 * 60 * 1000;
 const injuryCatalog = {
   eye: { label: 'Lesão no olho', effect: '-4 nos testes de Foco e Percepção' },
   leg: { label: 'Lesão na perna', effect: '-4 nos testes de Iniciativa e Agilidade' },
@@ -44,6 +46,39 @@ const severityCatalog = {
   grave: { label: 'Grave', cure: 'Precisa achar alguém específico', className: 'grave' },
   permanent: { label: 'Permanente', cure: 'Não tem cura', className: 'permanent' }
 };
+
+function ultStorageKey() {
+  return `crisol-ult-${playerCharacter.classId}-${playerCharacter.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+}
+
+function readUltTimestamp() {
+  try { return Number(localStorage.getItem(ultStorageKey())) || 0; } catch { return 0; }
+}
+
+function renderUltButton() {
+  const button = $('#use-ult-button');
+  const cooldown = $('#ult-cooldown');
+  const remaining = Math.max(0, (playerCharacter.ultUsedAt + ULT_COOLDOWN_MS) - Date.now());
+  button.disabled = remaining > 0;
+  if (remaining > 0) {
+    const totalSeconds = Math.ceil(remaining / 1000);
+    const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+    const seconds = String(totalSeconds % 60).padStart(2, '0');
+    cooldown.textContent = `${minutes}:${seconds}`;
+    if (!ultTimer) ultTimer = setInterval(renderUltButton, 1000);
+  } else {
+    cooldown.textContent = 'Pronta';
+    if (ultTimer) { clearInterval(ultTimer); ultTimer = null; }
+  }
+}
+
+function startUltCooldown() {
+  playerCharacter.ultUsedAt = Date.now();
+  try { localStorage.setItem(ultStorageKey(), String(playerCharacter.ultUsedAt)); } catch { /* armazenamento opcional */ }
+  renderUltButton();
+  if (ultTimer) clearInterval(ultTimer);
+  ultTimer = setInterval(renderUltButton, 1000);
+}
 
 const $ = (selector) => document.querySelector(selector);
 const classList = $('#class-list');
@@ -304,6 +339,7 @@ function renderSheet(characterName, age) {
   renderStatusGrid();
   renderInventory();
   renderInjuries();
+  renderUltButton();
   $('#sheet-attributes').innerHTML = attributes.map((attribute) => `<div class="sheet-attribute"><span>${attribute}</span><strong>${state.allocation[attribute]}</strong><small>${state.allocation[attribute]} dado${state.allocation[attribute] === 1 ? '' : 's'} por teste</small></div>`).join('');
   $('#sheet-class-content').innerHTML = `<div class="sheet-section"><h4>Habilidade ativa · ${characterClass.ability.cooldown}</h4><p><strong>${characterClass.ability.title}.</strong> ${characterClass.ability.description}</p></div>`;
 }
@@ -321,11 +357,13 @@ form.addEventListener('submit', (event) => {
     level: 1,
     xp: 0,
     pendingLevelUps: 0,
+    ultUsedAt: 0,
     status: Object.fromEntries(Object.entries(state.selectedClass.stats).map(([label, value]) => [label, typeof value === 'number' ? value : 0])),
     injuries: [],
     classId: state.selectedClass.id,
     inventory: [...state.selectedClass.equipment.map((item) => ({ ...item, dice: parseDice(item.detail), spellSlots: parseSpellSlots(item.detail) })), ...state.selectedClass.spells.map((spell) => ({ type: 'Magia', name: spell.name, detail: spell.detail, dice: parseDice(spell.detail) })), { type: 'Armadura', name: 'Armadura da classe', detail: state.selectedClass.armor, dice: null, armor: parseArmor(state.selectedClass.armor) }]
   };
+  playerCharacter.ultUsedAt = readUltTimestamp();
   renderSheet(name, age);
   $('.app-layout').hidden = true;
   $('.site-footer').hidden = true;
@@ -338,6 +376,11 @@ $('#back-button').addEventListener('click', () => {
   $('.app-layout').hidden = false;
   $('.site-footer').hidden = false;
   window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+$('#use-ult-button').addEventListener('click', () => {
+  if (!playerCharacter || playerCharacter.ultUsedAt + ULT_COOLDOWN_MS > Date.now()) return;
+  startUltCooldown();
 });
 
 $('#add-xp-button').addEventListener('click', () => {
