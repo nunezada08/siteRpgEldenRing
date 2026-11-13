@@ -39,6 +39,10 @@ const classList = $('#class-list');
 const attributeList = $('#attribute-list');
 const form = $('#character-form');
 const formError = $('#form-error');
+const landingView = $('#landing-view');
+const playerModeButton = $('#player-mode-button');
+const masterModeButton = $('#master-mode-button');
+const masterView = $('#master-view');
 
 function escapeHTML(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' })[character]);
@@ -73,7 +77,13 @@ function renderClassDetails() {
   $('#ability-title').textContent = characterClass.ability.title;
   $('#ability-cooldown').textContent = characterClass.ability.cooldown;
   $('#ability-description').textContent = characterClass.ability.description;
-  $('#class-stats').innerHTML = Object.entries(characterClass.stats).map(([label, value]) => `<div class="stat-row"><span>${label}</span><strong>${value}</strong></div>`).join('');
+  $('#class-portrait').innerHTML = `<span class="portrait-rune">${characterClass.name === 'Bandido' ? '◇' : characterClass.name === 'Profeta' ? '☼' : characterClass.name === 'Mago' ? '✧' : characterClass.name === 'Soldado' ? '⚔' : '✦'}</span><small>Imagem da<br />raça em breve</small>`;
+  $('#class-portrait').setAttribute('aria-label', `Espaço reservado para a imagem da raça ${characterClass.name}`);
+  $('#class-stats').innerHTML = Object.entries(characterClass.stats).map(([label, value]) => {
+    const numericValue = typeof value === 'number' ? value : 0;
+    const meter = numericValue === 0 ? 0 : Math.max(12, Math.min(100, (numericValue / 30) * 100));
+    return `<div class="stat-row"><span>${label}</span><div class="stat-meter"><i style="width:${meter}%"></i></div><strong>${value}</strong></div>`;
+  }).join('');
   $('#class-equipment').innerHTML = characterClass.equipment.map((item) => `<div class="equipment-item"><strong>${item.name}</strong><small>${item.detail}</small></div>`).join('');
   $('#spell-list').innerHTML = characterClass.spells.length ? characterClass.spells.map((spell) => `<span class="spell-pill">${spell.name} <b>· ${spell.detail}</b></span>`).join('') : '';
 }
@@ -82,9 +92,30 @@ function remainingPoints() {
   return 3 - attributes.reduce((sum, attribute) => sum + (state.allocation[attribute] - 1), 0);
 }
 
+function renderAttributeWheel() {
+  const size = 280;
+  const center = size / 2;
+  const radius = 92;
+  const angles = attributes.map((_, index) => (-90 + (index * 60)) * (Math.PI / 180));
+  const point = (distance, angle) => `${(center + Math.cos(angle) * distance).toFixed(2)},${(center + Math.sin(angle) * distance).toFixed(2)}`;
+  const grid = [1, 2, 3].map((level) => `<polygon points="${angles.map((angle) => point(radius * (level / 3), angle)).join(' ')}" />`).join('');
+  const axes = angles.map((angle) => `<line x1="${center}" y1="${center}" x2="${(center + Math.cos(angle) * radius).toFixed(2)}" y2="${(center + Math.sin(angle) * radius).toFixed(2)}" />`).join('');
+  const values = angles.map((angle, index) => point(radius * Math.min(1, state.allocation[attributes[index]] / 4), angle)).join(' ');
+  const labels = angles.map((angle, index) => {
+    const labelPoint = point(radius + 25, angle);
+    return `<text x="${labelPoint.split(',')[0]}" y="${labelPoint.split(',')[1]}" text-anchor="middle">${attributes[index]}</text>`;
+  }).join('');
+  const dots = angles.map((angle, index) => {
+    const [x, y] = point(radius * Math.min(1, state.allocation[attributes[index]] / 4), angle).split(',');
+    return `<circle cx="${x}" cy="${y}" r="3.5" />`;
+  }).join('');
+  $('#attribute-wheel').innerHTML = `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Atributos: ${attributes.map((attribute) => `${attribute} ${state.allocation[attribute]}`).join(', ')}"><g class="wheel-grid">${grid}</g><g class="wheel-axes">${axes}</g><polygon class="wheel-values" points="${values}" /> <g class="wheel-dots">${dots}</g><g class="wheel-labels">${labels}</g></svg><span class="wheel-center">${attributes.reduce((sum, attribute) => sum + state.allocation[attribute], 0)}<small>essência</small></span>`;
+}
+
 function renderAttributes() {
   const pointsLeft = remainingPoints();
   $('#points-counter').innerHTML = `<strong>${pointsLeft}</strong><span>de 3<br />pontos</span>`;
+  renderAttributeWheel();
   attributeList.innerHTML = attributes.map((attribute) => {
     const value = state.allocation[attribute];
     const atBase = value === 1;
@@ -138,6 +169,41 @@ form.addEventListener('submit', (event) => {
 $('#back-button').addEventListener('click', () => {
   $('#sheet-view').hidden = true;
   $('.app-layout').hidden = false;
+  $('.site-footer').hidden = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+function renderMasterGrid() {
+  $('#master-class-grid').innerHTML = classes.map((characterClass) => `<article class="master-class-card"><div class="master-class-symbol">${characterClass.name === 'Bandido' ? '◇' : characterClass.name === 'Profeta' ? '☼' : characterClass.name === 'Mago' ? '✧' : characterClass.name === 'Soldado' ? '⚔' : '✦'}</div><div><span class="mini-label">${characterClass.index} · origem</span><h3>${characterClass.name}</h3><p>${characterClass.description}</p><div class="master-class-meta"><span>Vida <b>${characterClass.life}</b></span><span>${characterClass.ability.title}</span></div></div></article>`).join('');
+}
+
+function showMode(mode) {
+  landingView.hidden = true;
+  $('.site-footer').hidden = true;
+  if (mode === 'master') {
+    masterView.hidden = false;
+    renderMasterGrid();
+  } else {
+    $('.app-layout').hidden = false;
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+playerModeButton.addEventListener('click', () => showMode('player'));
+masterModeButton.addEventListener('click', () => showMode('master'));
+$('#master-back-button').addEventListener('click', () => {
+  masterView.hidden = true;
+  landingView.hidden = false;
+  $('.site-footer').hidden = false;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+$('.brand').addEventListener('click', (event) => {
+  event.preventDefault();
+  $('.app-layout').hidden = true;
+  masterView.hidden = true;
+  $('#sheet-view').hidden = true;
+  landingView.hidden = false;
   $('.site-footer').hidden = false;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });

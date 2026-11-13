@@ -25,7 +25,24 @@
       </header>
 
       <main id="top">
-        <section class="app-layout" aria-label="Criação de personagem">
+        <section id="landing-view" class="landing-view" aria-label="Escolha do modo de jogo">
+          <div class="landing-copy">
+            <p class="eyebrow"><span class="eyebrow-line"></span> Crisol · mesa de fantasia sombria</p>
+            <h1>O destino começa<br />com uma <em>escolha.</em></h1>
+            <p class="landing-intro">Entre na campanha como jogador ou assuma o controle da mesa como mestre. Cada caminho abre uma forma diferente de contar sua lenda.</p>
+          </div>
+          <div class="mode-grid">
+            <button id="player-mode-button" class="mode-card mode-card-player" type="button">
+              <span class="mode-number">01</span><span class="mode-symbol">✦</span><span class="mode-label">Jogar como</span><strong>Jogador</strong><span class="mode-description">Forje seu personagem, escolha uma classe e prepare sua ficha para a batalha.</span><span class="mode-cta">Entrar na criação <b>↗</b></span>
+            </button>
+            <button id="master-mode-button" class="mode-card mode-card-master" type="button">
+              <span class="mode-number">02</span><span class="mode-symbol">◈</span><span class="mode-label">Jogar como</span><strong>Mestre</strong><span class="mode-description">Consulte as origens, organize a campanha e conduza o destino da mesa.</span><span class="mode-cta">Abrir painel do mestre <b>↗</b></span>
+            </button>
+          </div>
+          <div class="landing-foot"><span>CRISOL RPG · SESSÃO 01</span><span>Escolha seu papel para começar</span><span>✦</span></div>
+        </section>
+
+        <section class="app-layout" aria-label="Criação de personagem" hidden>
           <aside class="class-rail">
             <div class="rail-heading">
               <p class="eyebrow">01 / Origem</p>
@@ -49,7 +66,7 @@
             </div>
 
             <div class="class-hero">
-              <div class="hero-rune" aria-hidden="true"><span class="rune-ring"></span><span class="rune-glyph">✦</span></div>
+              <div id="class-portrait" class="class-portrait" aria-label="Espaço reservado para a imagem da raça"><span class="portrait-rune">✦</span><small>Imagem da<br />raça em breve</small></div>
               <div class="hero-copy">
                 <span id="class-kicker" class="class-kicker">A força que não se curva</span>
                 <p id="class-description">Uma presença brutal no campo de batalha, capaz de transformar fúria em força devastadora.</p>
@@ -95,12 +112,20 @@
 
               <div class="attributes-heading"><div><span class="eyebrow">03 / Atributos</span><h3>Distribua sua essência</h3></div><div id="points-counter" class="points-counter"><strong>3</strong><span>de 3<br />pontos</span></div></div>
               <p class="attribute-hint">Cada ponto define quantos dados você lança em um teste. Todos começam em 1.</p>
+              <div id="attribute-wheel" class="attribute-wheel" aria-label="Visualização hexagonal dos atributos"></div>
               <div id="attribute-list" class="attribute-list"></div>
               <p id="form-error" class="form-error" role="alert" aria-live="assertive"></p>
               <button class="primary-button" type="submit"><span>Gerar ficha</span><span class="button-arrow">↗</span></button>
             </form>
             <div class="builder-footnote"><span class="footnote-symbol">◌</span><p>A ficha poderá ser revisada antes de entrar em jogo.</p></div>
           </aside>
+        </section>
+
+        <section id="master-view" class="master-view" aria-live="polite" hidden>
+          <div class="master-toolbar"><button id="master-back-button" class="text-button" type="button"><span>←</span> Voltar ao início</button><span class="sheet-ready"><span class="status-dot"></span> Modo mestre</span></div>
+          <div class="master-header"><div><p class="eyebrow"><span class="eyebrow-line"></span> Painel da campanha</p><h2>Conduza o<br /><em>destino.</em></h2><p>Use esta visão para consultar rapidamente as cinco origens disponíveis na sua mesa. O painel de encontros e o controle de campanha podem crescer a partir daqui.</p></div><div class="master-seal">◈<small>MESTRE<br />CRISOL</small></div></div>
+          <div class="master-class-grid" id="master-class-grid"></div>
+          <div class="master-note"><span>✦</span><p><strong>Próximo capítulo:</strong> imagens das raças, encontros e ferramentas para conduzir a sessão.</p></div>
         </section>
 
         <section id="sheet-view" class="sheet-view" aria-live="polite" hidden>
