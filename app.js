@@ -68,12 +68,13 @@ function renderClassList() {
 
 function renderClassDetails() {
   const characterClass = state.selectedClass;
+  const classLife = characterClass.stats.Vitalidade * 2;
   $('#class-name').textContent = characterClass.name;
   $('#class-index').textContent = characterClass.index;
   $('#class-kicker').textContent = characterClass.kicker;
   $('#class-description').textContent = characterClass.description;
-  $('#class-life').textContent = characterClass.life;
-  $('#class-life-bar').style.width = `${Math.max(22, Math.min(100, (characterClass.life / 60) * 100))}%`;
+  $('#class-life').textContent = classLife;
+  $('#class-life-bar').style.width = `${Math.max(22, Math.min(100, (classLife / 60) * 100))}%`;
   $('#class-armor').textContent = characterClass.armor;
   $('#ability-title').textContent = characterClass.ability.title;
   $('#ability-cooldown').textContent = characterClass.ability.cooldown;
@@ -202,9 +203,10 @@ function registerExperience(amount) {
 
 function renderSheet(characterName, age) {
   const characterClass = state.selectedClass;
+  const currentLife = playerCharacter.status.Vitalidade * 2;
   $('#sheet-name').textContent = characterName;
   $('#sheet-subtitle').textContent = `${characterClass.name} · ${age} anos`;
-  $('#sheet-life').textContent = characterClass.life;
+  $('#sheet-life').textContent = currentLife;
   $('#sheet-class').textContent = characterClass.name;
   $('#sheet-age').textContent = age;
   renderProgression();
@@ -267,7 +269,7 @@ document.querySelectorAll('[data-close-modal]').forEach((button) => {
 });
 
 function renderMasterGrid() {
-  $('#master-class-grid').innerHTML = classes.map((characterClass) => `<article class="master-class-card"><div class="master-class-symbol">${characterClass.name === 'Bandido' ? '◇' : characterClass.name === 'Profeta' ? '☼' : characterClass.name === 'Mago' ? '✧' : characterClass.name === 'Soldado' ? '⚔' : '✦'}</div><div><span class="mini-label">${characterClass.index} · origem</span><h3>${characterClass.name}</h3><p>${characterClass.description}</p><div class="master-class-meta"><span>Vida <b>${characterClass.life}</b></span><span>${characterClass.ability.title}</span></div></div></article>`).join('');
+  $('#master-class-grid').innerHTML = classes.map((characterClass) => `<article class="master-class-card"><div class="master-class-symbol">${characterClass.name === 'Bandido' ? '◇' : characterClass.name === 'Profeta' ? '☼' : characterClass.name === 'Mago' ? '✧' : characterClass.name === 'Soldado' ? '⚔' : '✦'}</div><div><span class="mini-label">${characterClass.index} · origem</span><h3>${characterClass.name}</h3><p>${characterClass.description}</p><div class="master-class-meta"><span>Vida <b>${characterClass.stats.Vitalidade * 2}</b></span><span>${characterClass.ability.title}</span></div></div></article>`).join('');
 }
 
 function showMode(mode) {
