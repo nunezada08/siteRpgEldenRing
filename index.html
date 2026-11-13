@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0d0c" />
+    <meta name="description" content="Crisol RPG — forje uma ficha de personagem para sua mesa de fantasia sombria." />
+    <title>Crisol RPG — Forje seu destino</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+    <div class="site-shell">
+      <header class="topbar">
+        <a class="brand" href="#top" aria-label="Crisol RPG">
+          <span class="brand-mark" aria-hidden="true"><span></span></span>
+          <span class="brand-copy"><strong>CRISOL</strong><small>RPG DE FANTASIA SOMBRIA</small></span>
+        </a>
+        <div class="topbar-meta">
+          <span class="status-dot"></span>
+          <span>Mesa do narrador</span>
+          <span class="topbar-divider"></span>
+          <span class="session-code">Sessão 01</span>
+        </div>
+      </header>
+
+      <main id="top">
+        <section class="app-layout" aria-label="Criação de personagem">
+          <aside class="class-rail">
+            <div class="rail-heading">
+              <p class="eyebrow">01 / Origem</p>
+              <h1>Escolha seu<br /><em>caminho.</em></h1>
+              <p class="rail-intro">Toda lenda começa com uma escolha. Conheça as classes disponíveis para esta campanha.</p>
+            </div>
+            <div id="class-list" class="class-list" aria-label="Classes disponíveis"></div>
+            <div class="rail-footer">
+              <span class="seal-small">✦</span>
+              <span>O destino é moldado<br />por quem o enfrenta.</span>
+            </div>
+          </aside>
+
+          <section class="class-stage" aria-live="polite">
+            <div class="stage-heading">
+              <div>
+                <p class="eyebrow"><span class="eyebrow-line"></span> Registro de origem</p>
+                <h2 id="class-name">Orc</h2>
+              </div>
+              <div class="stage-index"><span id="class-index">01</span><span class="stage-index-total">/ 05</span></div>
+            </div>
+
+            <div class="class-hero">
+              <div class="hero-rune" aria-hidden="true"><span class="rune-ring"></span><span class="rune-glyph">✦</span></div>
+              <div class="hero-copy">
+                <span id="class-kicker" class="class-kicker">A força que não se curva</span>
+                <p id="class-description">Uma presença brutal no campo de batalha, capaz de transformar fúria em força devastadora.</p>
+              </div>
+              <div class="hero-vitality">
+                <span class="mini-label">Vida base</span>
+                <strong id="class-life">60</strong>
+                <span class="vitality-bar"><i id="class-life-bar"></i></span>
+              </div>
+            </div>
+
+            <div class="data-grid">
+              <article class="info-card combat-card">
+                <div class="card-heading"><span class="card-index">A</span><div><p class="card-label">Atributos de guerra</p><h3>Status</h3></div></div>
+                <div id="class-stats" class="stats-list"></div>
+              </article>
+              <article class="info-card equipment-card">
+                <div class="card-heading"><span class="card-index">B</span><div><p class="card-label">Arsenal inicial</p><h3>Equipamento</h3></div></div>
+                <div id="class-equipment" class="equipment-list"></div>
+                <div class="armor-note"><span class="armor-icon">◈</span><div><span class="mini-label">Armadura</span><strong id="class-armor">-2 ataque físico</strong></div></div>
+              </article>
+              <article class="info-card ability-card">
+                <div class="card-heading"><span class="card-index">C</span><div><p class="card-label">Poder de classe</p><h3 id="ability-title">Fúria</h3></div><span class="cooldown" id="ability-cooldown">1 × a cada 5 batalhas</span></div>
+                <p id="ability-description" class="ability-description"></p>
+                <div id="spell-list" class="spell-list"></div>
+              </article>
+            </div>
+          </section>
+
+          <aside class="builder-panel">
+            <div class="builder-topline"><span class="eyebrow">02 / Identidade</span><span class="builder-status">Rascunho</span></div>
+            <div class="builder-heading"><h2>Forje o<br /><em>personagem.</em></h2><p>Preencha os dados essenciais. O restante da ficha nasce da sua classe.</p></div>
+
+            <form id="character-form" novalidate>
+              <div class="field-group">
+                <label for="character-name">Nome do personagem</label>
+                <input id="character-name" name="name" type="text" maxlength="32" placeholder="Ex.: Asterion" autocomplete="off" required />
+              </div>
+              <div class="field-group age-field">
+                <label for="character-age">Idade</label>
+                <div class="age-input"><input id="character-age" name="age" type="number" min="1" max="999" placeholder="27" required /><span>anos</span></div>
+              </div>
+
+              <div class="attributes-heading"><div><span class="eyebrow">03 / Atributos</span><h3>Distribua sua essência</h3></div><div id="points-counter" class="points-counter"><strong>3</strong><span>de 3<br />pontos</span></div></div>
+              <p class="attribute-hint">Cada ponto define quantos dados você lança em um teste. Todos começam em 1.</p>
+              <div id="attribute-list" class="attribute-list"></div>
+              <p id="form-error" class="form-error" role="alert" aria-live="assertive"></p>
+              <button class="primary-button" type="submit"><span>Gerar ficha</span><span class="button-arrow">↗</span></button>
+            </form>
+            <div class="builder-footnote"><span class="footnote-symbol">◌</span><p>A ficha poderá ser revisada antes de entrar em jogo.</p></div>
+          </aside>
+        </section>
+
+        <section id="sheet-view" class="sheet-view" aria-live="polite" hidden>
+          <div class="sheet-toolbar"><button id="back-button" class="text-button" type="button"><span>←</span> Voltar e ajustar</button><span class="sheet-ready"><span class="status-dot"></span> Ficha pronta para a mesa</span></div>
+          <div class="sheet-header"><div><p class="eyebrow"><span class="eyebrow-line"></span> Registro de personagem</p><h2 id="sheet-name">Nome</h2><p id="sheet-subtitle" class="sheet-subtitle">Classe · idade</p></div><div class="sheet-seal" aria-hidden="true"><span>✦</span><small>CRISOL<br />RPG</small></div></div>
+          <div class="sheet-meta-grid"><div class="sheet-life"><span class="mini-label">Vida</span><strong id="sheet-life">60</strong><span class="life-word">pontos</span></div><div><span class="mini-label">Classe</span><strong id="sheet-class">Orc</strong></div><div><span class="mini-label">Idade</span><strong id="sheet-age">27</strong></div><div><span class="mini-label">Sessão</span><strong>01</strong></div></div>
+          <div class="sheet-columns"><article class="sheet-block"><div class="sheet-block-title"><span>A</span><h3>Atributos</h3></div><p class="block-caption">Dados disponíveis por teste</p><div id="sheet-attributes" class="sheet-attribute-grid"></div></article><article class="sheet-block"><div class="sheet-block-title"><span>B</span><h3>Herança de classe</h3></div><div id="sheet-class-content" class="sheet-class-content"></div></article></div>
+          <div class="sheet-quote"><span>“</span><p>O destino não é concedido. Ele é forjado.</p><span>”</span></div>
+        </section>
+      </main>
+      <footer class="site-footer"><span>CRISOL RPG</span><span>Ferramenta de criação de personagem</span><span>Feito para sua mesa</span></footer>
+    </div>
+    <script src="./app.js" defer></script>
+  </body>
+</html>
