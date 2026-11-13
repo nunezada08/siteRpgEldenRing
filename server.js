@@ -18,7 +18,7 @@ function token() { return crypto.randomBytes(24).toString('hex'); }
 function roomCode() { return crypto.randomBytes(3).toString('hex').toUpperCase(); }
 function safeName(value, fallback = 'Aventureiro') { return String(value || fallback).trim().slice(0, 40) || fallback; }
 function parseBody(req) { return new Promise((resolve, reject) => { let raw = ''; req.on('data', (chunk) => { raw += chunk; if (raw.length > 1_000_000) req.destroy(); }); req.on('end', () => { try { resolve(raw ? JSON.parse(raw) : {}); } catch { reject(new Error('JSON inválido')); } }); req.on('error', reject); }); }
-function publicPlayer(row, includeSheet = true) { return { id: row.id, name: row.name, sheet: includeSheet && row.sheet_json ? (typeof row.sheet_json === 'string' ? JSON.parse(row.sheet_json) : row.sheet_json) : null, lastSeen: row.last_seen }; }
+function publicPlayer(row, includeSheet = true, providedToken = '') { return { id: row.id, name: row.name, sheet: includeSheet && row.sheet_json && (includeSheet === true || row.player_token === providedToken) ? (typeof row.sheet_json === 'string' ? JSON.parse(row.sheet_json) : row.sheet_json) : null, lastSeen: row.last_seen }; }
 
 async function findRoom(code) {
   const [rows] = await pool.query('SELECT id, code, name, master_token, created_at FROM rooms WHERE code = ? LIMIT 1', [String(code || '').toUpperCase()]);
@@ -31,8 +31,8 @@ async function authenticateRoom(room, providedToken, role) {
   return rows.length > 0;
 }
 async function roomSnapshot(room, role, providedToken) {
-  const [rows] = await pool.query('SELECT id, name, sheet_json, last_seen FROM room_players WHERE room_id = ? ORDER BY created_at ASC', [room.id]);
-  return { code: room.code, name: room.name, players: rows.map((row) => publicPlayer(row, role === 'master' || row.player_token === providedToken)) };
+  const [rows] = await pool.query('SELECT id, player_token, name, sheet_json, last_seen FROM room_players WHERE room_id = ? ORDER BY created_at ASC', [room.id]);
+  return { code: room.code, name: room.name, players: rows.map((row) => publicPlayer(row, role === 'master' || row.player_token === providedToken, providedToken)) };
 }
 
 async function handleApi(req, res, url) {
@@ -71,6 +71,12 @@ async function handleApi(req, res, url) {
     if (req.method === 'GET' && !roomMatch[2]) {
       if (role === 'player') await pool.query('UPDATE room_players SET last_seen = CURRENT_TIMESTAMP WHERE room_id = ? AND player_token = ?', [room.id, providedToken]);
       return ok(res, { room: await roomSnapshot(room, role, providedToken) });
+    }
+    if (req.method === 'PATCH' && roomMatch[2] && role === 'master') {
+      const body = await parseBody(req);
+      const [result] = await pool.query('UPDATE room_players SET sheet_json = ? WHERE room_id = ? AND id = ?', [JSON.stringify(body.sheet || null), room.id, Number(roomMatch[2])]);
+      if (!result.affectedRows) return fail(res, 404, 'Jogador não encontrado.');
+      return ok(res, { saved: true });
     }
     if (req.method === 'PUT' && roomMatch[2]) {
       const body = await parseBody(req);

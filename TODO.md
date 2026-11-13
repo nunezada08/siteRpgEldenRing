@@ -70,3 +70,12 @@
   - O Mestre consegue ver todos os jogadores conectados à sala.
   - O Mestre consegue abrir e consultar a ficha de cada jogador.
   - Fichas e estado da sala ficam persistidos em banco e sincronizados automaticamente.
+
+- [x] **Permissões da ficha compartilhada**
+  - O Mestre é responsável por adicionar XP e controlar a progressão recebida pelo jogador.
+  - O Mestre pode alterar nomes, dados e limites dos itens do inventário.
+  - O Mestre pode adicionar, editar e remover magias ou feitiços respeitando a capacidade do cajado ou selo.
+  - O Mestre pode registrar e curar lesões.
+  - O Jogador não pode adicionar XP, editar inventário, cadastrar magias, registrar lesões ou curá-las.
+  - O Jogador pode escolher o status ao atingir level suficiente e pode usar a Ult com cooldown próprio.
+  - Alterações do Mestre são enviadas ao Jogador automaticamente pela sala.

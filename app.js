@@ -247,6 +247,7 @@ function renderProgression() {
   $('#sheet-xp-needed').textContent = needed;
   $('#sheet-xp-bar').style.width = `${percentage}%`;
   $('#sheet-xp-caption').textContent = `${needed - playerCharacter.xp} XP para o próximo level`;
+  $('#add-xp-button').hidden = roomSession.role !== 'master';
 }
 
 function renderLevelUpOptions() {
@@ -273,7 +274,7 @@ function openLevelUpModal() {
 }
 
 function registerExperience(amount) {
-  playerCharacter.xp += amount;
+  applyExperienceToSheet(playerCharacter, amount);
   while (true) {
     const pendingLevel = playerCharacter.level + playerCharacter.pendingLevelUps;
     const required = xpToNextLevel(pendingLevel);
@@ -329,9 +330,11 @@ function renderInventory() {
   $('#magic-hint').textContent = `${spells.length} / ${spellCapacity} espaços usados`;
   $('#add-spell-button').textContent = spellLimitReached ? 'Limite atingido' : (playerCharacter.classId === 'profeta' ? '+ Adicionar feitiço' : '+ Adicionar magia');
   $('#add-spell-button').disabled = spellLimitReached;
+  $('#add-spell-button').hidden = roomSession.role !== 'master';
   $('#sheet-inventory').innerHTML = equipment.map(({ item, index }) => renderInventoryItem(item, index, diceTypes, spellSlotOptions, armorTypes)).join('');
   $('#sheet-spells').innerHTML = spells.map(({ item, index }) => renderInventoryItem(item, index, diceTypes, spellSlotOptions, armorTypes)).join('');
   document.querySelectorAll('#sheet-inventory select, #sheet-spells select').forEach((select) => {
+    select.disabled = roomSession.role !== 'master';
     select.addEventListener('change', () => {
       const item = playerCharacter.inventory[Number(select.dataset.inventoryIndex)];
       if (select.classList.contains('dice-count')) item.dice.count = Number(select.value);
@@ -353,13 +356,15 @@ function renderInjuryPreview() {
 
 function renderInjuries() {
   const injuries = playerCharacter.injuries;
+  const canEdit = roomSession.role === 'master';
   $('#injury-hint').textContent = injuries.length ? `${injuries.length} lesão${injuries.length === 1 ? '' : 'ões'} registrada${injuries.length === 1 ? '' : 's'}` : 'Nenhuma lesão registrada';
   $('#sheet-injuries').innerHTML = injuries.length ? injuries.map((injury) => {
     const body = injuryCatalog[injury.body];
     const severity = severityCatalog[injury.severity];
-    const cureAction = injury.severity === 'permanent' ? '<span class="injury-no-cure">Sem cura</span>' : `<button class="cure-injury" type="button" data-injury-id="${injury.id}">Marcar como curada</button>`;
+    const cureAction = injury.severity === 'permanent' ? '<span class="injury-no-cure">Sem cura</span>' : canEdit ? `<button class="cure-injury" type="button" data-injury-id="${injury.id}">Marcar como curada</button>` : '<span class="injury-no-cure">Aguarda o Mestre</span>';
     return `<article class="injury-card ${severity.className}"><div class="injury-mark">!</div><div class="injury-copy"><div><strong>${body.label}</strong><span class="injury-severity">${severity.label}</span></div><p>${body.effect}</p><small>${severity.cure}</small></div>${cureAction}</article>`;
   }).join('') : '<div class="injury-empty"><span>✦</span><p>Nenhuma marca registrada. Um crítico de boss pode mudar isso.</p></div>';
+  $('#add-injury-button').hidden = !canEdit;
   $('#sheet-injuries').querySelectorAll('.cure-injury').forEach((button) => {
     button.addEventListener('click', () => {
       playerCharacter.injuries = playerCharacter.injuries.filter((injury) => injury.id !== Number(button.dataset.injuryId));
@@ -495,8 +500,50 @@ $('#injury-form').addEventListener('submit', (event) => {
 });
 
 let masterPlayers = [];
+let masterSelectedPlayerId = null;
+
+function sheetSpellCapacity(sheet) {
+  return sheet.inventory?.find((item) => item.spellSlots)?.spellSlots.count || 0;
+}
+
+function syncSheetItemDetail(item) {
+  if (item.armor) item.detail = `-${item.armor.reduction} ${item.armor.type}`;
+  else if (item.spellSlots) item.detail = `máx. ${item.spellSlots.count} ${item.spellSlots.label}`;
+  else if (item.dice) item.detail = `${item.dice.count}${item.dice.type}`;
+}
+
+function renderMasterItemEditor(item, index) {
+  const diceTypes = ['D4', 'D6', 'D8', 'D10', 'D12'];
+  const armorTypes = ['ataques físicos', 'ataques mágicos', 'ataques de feitiçaria', 'ataques mágicos e de feitiçaria'];
+  const controls = item.dice ? `<select class="master-item-control" data-item-index="${index}" data-control="dice-count">${[1, 2, 3, 4, 5].map((value) => `<option value="${value}" ${item.dice.count === value ? 'selected' : ''}>${value}</option>`).join('')}</select><span>×</span><select class="master-item-control" data-item-index="${index}" data-control="dice-type">${diceTypes.map((type) => `<option ${item.dice.type === type ? 'selected' : ''}>${type}</option>`).join('')}</select>` : item.spellSlots ? `<select class="master-item-control" data-item-index="${index}" data-control="spell-slots">${[1, 2, 3, 4, 5].map((value) => `<option value="${value}" ${item.spellSlots.count === value ? 'selected' : ''}>${value}</option>`).join('')}</select><span>espaços</span>` : item.armor ? `<select class="master-item-control" data-item-index="${index}" data-control="armor-reduction">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => `<option value="${value}" ${item.armor.reduction === value ? 'selected' : ''}>-${value}</option>`).join('')}</select><select class="master-item-control" data-item-index="${index}" data-control="armor-type">${armorTypes.map((type) => `<option ${item.armor.type === type ? 'selected' : ''}>${type}</option>`).join('')}</select>` : '<span>sem editor</span>';
+  return `<li class="master-item-editor"><div><span class="inventory-kind">${escapeHTML(item.type)}</span><input class="master-item-name" data-item-index="${index}" value="${escapeHTML(item.name)}" aria-label="Nome do item" /><small>${escapeHTML(item.detail || '')}</small></div><div class="master-item-controls">${controls}${item.type === 'Magia' ? `<button class="master-remove-spell" data-item-index="${index}" type="button" aria-label="Remover magia">×</button>` : ''}</div></li>`;
+}
+
+async function saveMasterSheet(player) {
+  try {
+    await roomApi(`/api/rooms/${roomSession.code}/players/${player.id}?token=${roomSession.token}&role=master`, { method: 'PATCH', body: { sheet: player.sheet } });
+    $('#master-detail-message').textContent = 'Alteração salva para o jogador.';
+    renderMasterGrid(masterPlayers);
+  } catch (error) {
+    $('#master-detail-message').textContent = error.message;
+  }
+}
+
+function applyExperienceToSheet(sheet, amount) {
+  sheet.xp = Number(sheet.xp) || 0;
+  sheet.pendingLevelUps = Number(sheet.pendingLevelUps) || 0;
+  sheet.xp += amount;
+  while (true) {
+    const pendingLevel = sheet.level + sheet.pendingLevelUps;
+    const required = xpToNextLevel(pendingLevel);
+    if (sheet.xp < required) break;
+    sheet.xp -= required;
+    sheet.pendingLevelUps += 1;
+  }
+}
 
 function renderMasterPlayerDetail(player) {
+  masterSelectedPlayerId = player?.id || null;
   const detail = $('#master-player-detail');
   if (!player || !player.sheet) {
     detail.innerHTML = '<div class="master-detail-empty"><span>✦</span><p>Este jogador ainda está escolhendo sua classe.</p></div>';
@@ -507,9 +554,28 @@ function renderMasterPlayerDetail(player) {
   const life = (sheet.status?.Vitalidade || 0) * 2;
   const attributesMarkup = Object.entries(sheet.allocation || {}).map(([label, value]) => `<span>${escapeHTML(label)} <b>${value}</b></span>`).join('');
   const statusMarkup = Object.entries(sheet.status || {}).map(([label, value]) => `<span>${escapeHTML(label)} <b>${value}</b></span>`).join('');
-  const inventoryMarkup = (sheet.inventory || []).map((item) => `<li><b>${escapeHTML(item.name)}</b><small>${item.dice ? `${item.dice.count}${escapeHTML(item.dice.type)}` : escapeHTML(item.detail || '')}</small></li>`).join('');
-  const injuriesMarkup = (sheet.injuries || []).map((injury) => `<li>${escapeHTML(injuryCatalog[injury.body]?.label || injury.body)} · ${escapeHTML(severityCatalog[injury.severity]?.label || injury.severity)}</li>`).join('');
-  detail.innerHTML = `<div class="master-detail-header"><div><span class="mini-label">Ficha selecionada</span><h3>${escapeHTML(sheet.name || player.name)}</h3><p>${escapeHTML(characterClass?.name || sheet.classId || 'Classe não escolhida')} · ${sheet.age || '—'} anos</p></div><span class="master-detail-level">LV ${sheet.level || 1}</span></div><div class="master-detail-vitals"><div><span>Vida</span><strong>${life}</strong></div><div><span>XP</span><strong>${sheet.xp || 0}</strong></div><div><span>Lesões</span><strong>${(sheet.injuries || []).length}</strong></div></div><section class="master-detail-section"><h4>Atributos</h4><div class="master-detail-values">${attributesMarkup}</div></section><section class="master-detail-section"><h4>Status</h4><div class="master-detail-values">${statusMarkup}</div></section><section class="master-detail-section"><h4>Inventário</h4><ul class="master-detail-list">${inventoryMarkup || '<li>Nenhum item registrado</li>'}</ul></section><section class="master-detail-section"><h4>Lesões</h4><ul class="master-detail-list">${injuriesMarkup || '<li>Nenhuma lesão</li>'}</ul></section>`;
+  const inventoryMarkup = (sheet.inventory || []).map((item, index) => renderMasterItemEditor(item, index)).join('');
+  const injuriesMarkup = (sheet.injuries || []).map((injury) => `<li>${escapeHTML(injuryCatalog[injury.body]?.label || injury.body)} · ${escapeHTML(severityCatalog[injury.severity]?.label || injury.severity)} ${injury.severity !== 'permanent' ? `<button class="master-cure-injury" data-injury-id="${injury.id}" type="button">Curar</button>` : ''}</li>`).join('');
+  const spellLabel = sheet.classId === 'profeta' ? 'feitiço' : 'magia';
+  detail.innerHTML = `<div class="master-detail-header"><div><span class="mini-label">Ficha selecionada</span><h3>${escapeHTML(sheet.name || player.name)}</h3><p>${escapeHTML(characterClass?.name || sheet.classId || 'Classe não escolhida')} · ${sheet.age || '—'} anos</p></div><span class="master-detail-level">LV ${sheet.level || 1}</span></div><div class="master-detail-vitals"><div><span>Vida</span><strong>${life}</strong></div><div><span>XP</span><strong>${sheet.xp || 0}</strong></div><div><span>Lesões</span><strong>${(sheet.injuries || []).length}</strong></div></div><section class="master-detail-controls"><h4>Controle do Mestre</h4><div class="master-xp-controls"><input id="master-xp-amount" type="number" min="1" placeholder="XP recebido" /><button id="master-add-xp" class="secondary-button" type="button">Adicionar XP</button></div><p id="master-detail-message" class="master-detail-message">Somente o Mestre altera XP, itens, magias e lesões.</p></section><section class="master-detail-section"><h4>Atributos</h4><div class="master-detail-values">${attributesMarkup}</div></section><section class="master-detail-section"><h4>Status</h4><div class="master-detail-values">${statusMarkup}</div></section><section class="master-detail-section"><h4>Inventário · editável pelo Mestre</h4><ul class="master-detail-list master-inventory-list">${inventoryMarkup || '<li>Nenhum item registrado</li>'}</ul></section><section class="master-detail-section"><h4>${spellLabel[0].toUpperCase() + spellLabel.slice(1)}s · ${sheet.inventory?.filter((item) => item.type === 'Magia').length || 0} / ${sheetSpellCapacity(sheet)}</h4><div class="master-add-spell"><input id="master-spell-name" type="text" maxlength="40" placeholder="Nome da ${spellLabel}" /><select id="master-spell-count"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select><select id="master-spell-type"><option>D4</option><option>D6</option><option selected>D8</option><option>D10</option><option>D12</option></select><button id="master-add-spell" class="secondary-button" type="button">Adicionar</button></div></section><section class="master-detail-section"><h4>Lesões · editável pelo Mestre</h4><div class="master-add-injury"><select id="master-injury-body"><option value="eye">Olho</option><option value="leg">Perna</option><option value="arm">Braço</option></select><select id="master-injury-severity"><option value="light">Leve</option><option value="grave">Grave</option><option value="permanent">Permanente</option></select><button id="master-add-injury" class="secondary-button" type="button">Registrar</button></div><ul class="master-detail-list">${injuriesMarkup || '<li>Nenhuma lesão registrada</li>'}</ul></section>`;
+
+  detail.querySelectorAll('.master-item-control, .master-item-name').forEach((control) => control.addEventListener('change', async () => {
+    const item = sheet.inventory[Number(control.dataset.itemIndex)];
+    if (control.classList.contains('master-item-name')) item.name = control.value.trim() || item.name;
+    if (control.dataset.control === 'dice-count') item.dice.count = Number(control.value);
+    if (control.dataset.control === 'dice-type') item.dice.type = control.value;
+    if (control.dataset.control === 'spell-slots') item.spellSlots.count = Number(control.value);
+    if (control.dataset.control === 'armor-reduction') item.armor.reduction = Number(control.value);
+    if (control.dataset.control === 'armor-type') item.armor.type = control.value;
+    syncSheetItemDetail(item);
+    await saveMasterSheet(player);
+    renderMasterPlayerDetail(player);
+  }));
+  detail.querySelectorAll('.master-remove-spell').forEach((button) => button.addEventListener('click', async () => { sheet.inventory.splice(Number(button.dataset.itemIndex), 1); await saveMasterSheet(player); renderMasterPlayerDetail(player); }));
+  $('#master-add-xp').addEventListener('click', async () => { const amount = Number($('#master-xp-amount').value); if (!Number.isInteger(amount) || amount < 1) { $('#master-detail-message').textContent = 'Informe uma quantidade de XP maior que zero.'; return; } applyExperienceToSheet(sheet, amount); await saveMasterSheet(player); renderMasterPlayerDetail(player); });
+  $('#master-add-spell').addEventListener('click', async () => { const name = $('#master-spell-name').value.trim(); if (!name) { $('#master-detail-message').textContent = `Informe o nome da ${spellLabel}.`; return; } if ((sheet.inventory || []).filter((item) => item.type === 'Magia').length >= sheetSpellCapacity(sheet)) { $('#master-detail-message').textContent = 'A capacidade de magias ou feitiços foi atingida.'; return; } const dice = { count: Number($('#master-spell-count').value), type: $('#master-spell-type').value }; sheet.inventory.push({ type: 'Magia', name, detail: `${dice.count}${dice.type} dano`, dice }); await saveMasterSheet(player); renderMasterPlayerDetail(player); });
+  $('#master-add-injury').addEventListener('click', async () => { sheet.injuries.push({ id: Date.now(), body: $('#master-injury-body').value, severity: $('#master-injury-severity').value }); await saveMasterSheet(player); renderMasterPlayerDetail(player); });
+  detail.querySelectorAll('.master-cure-injury').forEach((button) => button.addEventListener('click', async () => { sheet.injuries = sheet.injuries.filter((injury) => injury.id !== Number(button.dataset.injuryId)); await saveMasterSheet(player); renderMasterPlayerDetail(player); }));
 }
 
 function renderMasterGrid(players = []) {
@@ -531,9 +597,29 @@ async function refreshMasterRoom() {
   try {
     const payload = await roomApi(`/api/rooms/${roomSession.code}?token=${roomSession.token}&role=master`);
     renderMasterGrid(payload.room.players);
+    if (masterSelectedPlayerId) {
+      const selected = payload.room.players.find((player) => player.id === masterSelectedPlayerId);
+      if (selected) renderMasterPlayerDetail(selected);
+    }
     $('#master-sync-status').textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   } catch (error) {
     $('#master-sync-status').textContent = 'Falha ao sincronizar';
+  }
+}
+
+async function refreshPlayerSheet() {
+  if (roomSession.role !== 'player' || !playerCharacter) return;
+  try {
+    const payload = await roomApi(`/api/rooms/${roomSession.code}?token=${roomSession.token}&role=player`);
+    const remotePlayer = payload.room.players.find((player) => player.id === roomSession.playerId);
+    if (!remotePlayer?.sheet || JSON.stringify(remotePlayer.sheet) === JSON.stringify(playerCharacter)) return;
+    playerCharacter = remotePlayer.sheet;
+    state.selectedClass = classes.find((characterClass) => characterClass.id === playerCharacter.classId) || state.selectedClass;
+    state.allocation = playerCharacter.allocation || state.allocation;
+    renderSheet(playerCharacter.name, playerCharacter.age);
+    if (playerCharacter.pendingLevelUps > 0 && $('#level-up-modal').hidden) openLevelUpModal();
+  } catch (error) {
+    console.warn('Falha ao atualizar a ficha recebida do Mestre', error);
   }
 }
 
@@ -562,6 +648,8 @@ function openPlayerBuilder(payload) {
   masterView.hidden = true;
   $('.app-layout').hidden = false;
   $('.site-footer').hidden = true;
+  stopRoomPolling();
+  roomPollTimer = setInterval(refreshPlayerSheet, 3000);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
