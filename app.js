@@ -76,6 +76,7 @@ function startUltCooldown() {
   playerCharacter.ultUsedAt = Date.now();
   try { localStorage.setItem(ultStorageKey(), String(playerCharacter.ultUsedAt)); } catch { /* armazenamento opcional */ }
   renderUltButton();
+  scheduleSheetSync();
   if (ultTimer) clearInterval(ultTimer);
   ultTimer = setInterval(renderUltButton, 1000);
 }
@@ -89,9 +90,48 @@ const landingView = $('#landing-view');
 const playerModeButton = $('#player-mode-button');
 const masterModeButton = $('#master-mode-button');
 const masterView = $('#master-view');
+const playerEntryView = $('#player-entry-view');
+const masterEntryView = $('#master-entry-view');
+const roomSession = { role: null, code: '', token: '', playerId: null };
+let roomPollTimer = null;
+let sheetSyncTimer = null;
 
 function escapeHTML(value) {
   return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' })[character]);
+}
+
+async function roomApi(path, options = {}) {
+  const response = await fetch(path, { headers: { 'content-type': 'application/json', ...(options.headers || {}) }, ...options, body: options.body && typeof options.body !== 'string' ? JSON.stringify(options.body) : options.body });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || 'Não foi possível conectar à sala.');
+  return payload;
+}
+
+function setRoomSession(payload) {
+  roomSession.role = payload.role;
+  roomSession.code = payload.code;
+  roomSession.token = payload.token;
+  roomSession.playerId = payload.playerId || null;
+  document.querySelectorAll('.session-code').forEach((node) => { node.textContent = `Sala ${payload.code}`; });
+}
+
+function stopRoomPolling() {
+  if (roomPollTimer) { clearInterval(roomPollTimer); roomPollTimer = null; }
+}
+
+function scheduleSheetSync() {
+  if (roomSession.role !== 'player' || !playerCharacter) return;
+  clearTimeout(sheetSyncTimer);
+  sheetSyncTimer = setTimeout(syncCurrentSheet, 350);
+}
+
+async function syncCurrentSheet() {
+  if (roomSession.role !== 'player' || !playerCharacter) return;
+  try {
+    await roomApi(`/api/rooms/${roomSession.code}/players/${roomSession.token}?token=${roomSession.token}`, { method: 'PUT', body: { name: playerCharacter.name, sheet: playerCharacter } });
+  } catch (error) {
+    console.warn('Falha ao sincronizar a ficha', error);
+  }
 }
 
 function renderClassList() {
@@ -302,6 +342,7 @@ function renderInventory() {
       renderInventory();
     });
   });
+  scheduleSheetSync();
 }
 
 function renderInjuryPreview() {
@@ -325,6 +366,7 @@ function renderInjuries() {
       renderInjuries();
     });
   });
+  scheduleSheetSync();
 }
 
 function renderSheet(characterName, age) {
@@ -452,35 +494,120 @@ $('#injury-form').addEventListener('submit', (event) => {
   renderInjuries();
 });
 
-function renderMasterGrid() {
-  $('#master-class-grid').innerHTML = classes.map((characterClass) => `<article class="master-class-card"><div class="master-class-symbol">${characterClass.name === 'Bandido' ? '◇' : characterClass.name === 'Profeta' ? '☼' : characterClass.name === 'Mago' ? '✧' : characterClass.name === 'Soldado' ? '⚔' : '✦'}</div><div><span class="mini-label">${characterClass.index} · origem</span><h3>${characterClass.name}</h3><p>${characterClass.description}</p><div class="master-class-meta"><span>Vida <b>${characterClass.stats.Vitalidade * 2}</b></span><span>${characterClass.ability.title}</span></div></div></article>`).join('');
+let masterPlayers = [];
+
+function renderMasterPlayerDetail(player) {
+  const detail = $('#master-player-detail');
+  if (!player || !player.sheet) {
+    detail.innerHTML = '<div class="master-detail-empty"><span>✦</span><p>Este jogador ainda está escolhendo sua classe.</p></div>';
+    return;
+  }
+  const sheet = player.sheet;
+  const characterClass = classes.find((item) => item.id === sheet.classId);
+  const life = (sheet.status?.Vitalidade || 0) * 2;
+  const attributesMarkup = Object.entries(sheet.allocation || {}).map(([label, value]) => `<span>${escapeHTML(label)} <b>${value}</b></span>`).join('');
+  const statusMarkup = Object.entries(sheet.status || {}).map(([label, value]) => `<span>${escapeHTML(label)} <b>${value}</b></span>`).join('');
+  const inventoryMarkup = (sheet.inventory || []).map((item) => `<li><b>${escapeHTML(item.name)}</b><small>${item.dice ? `${item.dice.count}${escapeHTML(item.dice.type)}` : escapeHTML(item.detail || '')}</small></li>`).join('');
+  const injuriesMarkup = (sheet.injuries || []).map((injury) => `<li>${escapeHTML(injuryCatalog[injury.body]?.label || injury.body)} · ${escapeHTML(severityCatalog[injury.severity]?.label || injury.severity)}</li>`).join('');
+  detail.innerHTML = `<div class="master-detail-header"><div><span class="mini-label">Ficha selecionada</span><h3>${escapeHTML(sheet.name || player.name)}</h3><p>${escapeHTML(characterClass?.name || sheet.classId || 'Classe não escolhida')} · ${sheet.age || '—'} anos</p></div><span class="master-detail-level">LV ${sheet.level || 1}</span></div><div class="master-detail-vitals"><div><span>Vida</span><strong>${life}</strong></div><div><span>XP</span><strong>${sheet.xp || 0}</strong></div><div><span>Lesões</span><strong>${(sheet.injuries || []).length}</strong></div></div><section class="master-detail-section"><h4>Atributos</h4><div class="master-detail-values">${attributesMarkup}</div></section><section class="master-detail-section"><h4>Status</h4><div class="master-detail-values">${statusMarkup}</div></section><section class="master-detail-section"><h4>Inventário</h4><ul class="master-detail-list">${inventoryMarkup || '<li>Nenhum item registrado</li>'}</ul></section><section class="master-detail-section"><h4>Lesões</h4><ul class="master-detail-list">${injuriesMarkup || '<li>Nenhuma lesão</li>'}</ul></section>`;
+}
+
+function renderMasterGrid(players = []) {
+  masterPlayers = players;
+  $('#master-player-count').textContent = `${players.length} jogador${players.length === 1 ? '' : 'es'}`;
+  $('#master-class-grid').innerHTML = players.length ? players.map((player) => {
+    const sheet = player.sheet;
+    const characterClass = sheet && classes.find((item) => item.id === sheet.classId);
+    const life = sheet ? (sheet.status?.Vitalidade || 0) * 2 : '—';
+    return `<button class="master-player-card" data-player-id="${player.id}" type="button"><div class="master-class-symbol">${characterClass?.name === 'Bandido' ? '◇' : characterClass?.name === 'Profeta' ? '☼' : characterClass?.name === 'Mago' ? '✧' : characterClass?.name === 'Soldado' ? '⚔' : '✦'}</div><div><span class="mini-label">${sheet ? escapeHTML(characterClass?.name || 'Classe') : 'Aguardando ficha'}</span><h3>${escapeHTML(player.name)}</h3><p>${sheet ? `${life} Vida · Level ${sheet.level || 1} · ${sheet.xp || 0} XP` : 'Entrou na sala e ainda está criando o personagem.'}</p><div class="master-class-meta"><span>${sheet ? `${(sheet.injuries || []).length} lesão${(sheet.injuries || []).length === 1 ? '' : 'ões'}` : 'online'}</span><span>Ver ficha ↗</span></div></div></button>`;
+  }).join('') : '<div class="master-room-empty"><span>✦</span><p>A sala está aberta. Compartilhe o código para seus jogadores entrarem.</p></div>';
+  $('#master-class-grid').querySelectorAll('.master-player-card').forEach((card) => {
+    card.addEventListener('click', () => renderMasterPlayerDetail(masterPlayers.find((player) => String(player.id) === card.dataset.playerId)));
+  });
+}
+
+async function refreshMasterRoom() {
+  if (roomSession.role !== 'master') return;
+  try {
+    const payload = await roomApi(`/api/rooms/${roomSession.code}?token=${roomSession.token}&role=master`);
+    renderMasterGrid(payload.room.players);
+    $('#master-sync-status').textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  } catch (error) {
+    $('#master-sync-status').textContent = 'Falha ao sincronizar';
+  }
+}
+
+function openMasterRoom(payload) {
+  setRoomSession(payload);
+  $('#master-room-code').textContent = payload.code;
+  $('#master-room-title').innerHTML = `${escapeHTML(payload.name)}<br /><em>aberta.</em>`;
+  landingView.hidden = true;
+  masterEntryView.hidden = true;
+  playerEntryView.hidden = true;
+  $('.app-layout').hidden = true;
+  $('#sheet-view').hidden = true;
+  masterView.hidden = false;
+  $('.site-footer').hidden = true;
+  stopRoomPolling();
+  refreshMasterRoom();
+  roomPollTimer = setInterval(refreshMasterRoom, 3000);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openPlayerBuilder(payload) {
+  setRoomSession(payload);
+  landingView.hidden = true;
+  playerEntryView.hidden = true;
+  masterEntryView.hidden = true;
+  masterView.hidden = true;
+  $('.app-layout').hidden = false;
+  $('.site-footer').hidden = true;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function showMode(mode) {
   landingView.hidden = true;
   $('.site-footer').hidden = true;
   if (mode === 'master') {
-    masterView.hidden = false;
-    renderMasterGrid();
+    masterEntryView.hidden = false;
+    playerEntryView.hidden = true;
   } else {
-    $('.app-layout').hidden = false;
+    playerEntryView.hidden = false;
+    masterEntryView.hidden = true;
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 playerModeButton.addEventListener('click', () => showMode('player'));
 masterModeButton.addEventListener('click', () => showMode('master'));
-$('#master-back-button').addEventListener('click', () => {
-  masterView.hidden = true;
-  landingView.hidden = false;
-  $('.site-footer').hidden = false;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+$('#player-entry-back').addEventListener('click', () => { playerEntryView.hidden = true; landingView.hidden = false; $('.site-footer').hidden = false; });
+$('#master-entry-back').addEventListener('click', () => { masterEntryView.hidden = true; landingView.hidden = false; $('.site-footer').hidden = false; });
+$('#master-back-button').addEventListener('click', () => { stopRoomPolling(); masterView.hidden = true; landingView.hidden = false; $('.site-footer').hidden = false; });
+$('#master-refresh-button').addEventListener('click', refreshMasterRoom);
+
+$('#copy-room-code').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(roomSession.code); $('#copy-room-code').textContent = 'Código copiado'; setTimeout(() => { $('#copy-room-code').textContent = 'Copiar código'; }, 1800); } catch { $('#copy-room-code').textContent = roomSession.code; }
+});
+
+$('#master-room-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  $('#master-room-error').textContent = '';
+  try { openMasterRoom(await roomApi('/api/rooms', { method: 'POST', body: { name: $('#master-room-name').value.trim() } })); } catch (error) { $('#master-room-error').textContent = error.message; }
+});
+
+$('#player-room-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  $('#player-room-error').textContent = '';
+  try { openPlayerBuilder(await roomApi('/api/rooms/join', { method: 'POST', body: { name: $('#player-room-name').value.trim(), code: $('#player-room-code').value.trim().toUpperCase() } })); } catch (error) { $('#player-room-error').textContent = error.message; }
 });
 
 $('.brand').addEventListener('click', (event) => {
   event.preventDefault();
+  stopRoomPolling();
   $('.app-layout').hidden = true;
   masterView.hidden = true;
+  playerEntryView.hidden = true;
+  masterEntryView.hidden = true;
   $('#sheet-view').hidden = true;
   landingView.hidden = false;
   $('.site-footer').hidden = false;

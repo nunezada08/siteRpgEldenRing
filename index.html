@@ -42,6 +42,16 @@
           <div class="landing-foot"><span>CRISOL RPG · SESSÃO 01</span><span>Escolha seu papel para começar</span><span>✦</span></div>
         </section>
 
+        <section id="player-entry-view" class="room-entry-view" aria-label="Entrar na sala do Mestre" hidden>
+          <div class="room-entry-toolbar"><button id="player-entry-back" class="text-button" type="button"><span>←</span> Voltar ao início</button><span class="sheet-ready"><span class="status-dot"></span> Entrada do jogador</span></div>
+          <div class="room-entry-layout"><div><p class="eyebrow"><span class="eyebrow-line"></span> Convite para a mesa</p><h2>Entre na sala<br /><em>do Mestre.</em></h2><p>Use o código que o Mestre compartilhou. Depois de entrar, você poderá escolher sua classe e criar a ficha vinculada à campanha.</p></div><form id="player-room-form" class="room-form"><label for="player-room-name">Seu nome</label><input id="player-room-name" type="text" maxlength="40" placeholder="Ex.: Asterion" required /><label for="player-room-code">Código da sala</label><input id="player-room-code" class="room-code-input" type="text" maxlength="8" placeholder="ABC123" required /><p id="player-room-error" class="form-error"></p><button class="primary-button" type="submit"><span>Entrar na sala</span><span class="button-arrow">↗</span></button></form></div>
+        </section>
+
+        <section id="master-entry-view" class="room-entry-view" aria-label="Criar sala do Mestre" hidden>
+          <div class="room-entry-toolbar"><button id="master-entry-back" class="text-button" type="button"><span>←</span> Voltar ao início</button><span class="sheet-ready"><span class="status-dot"></span> Preparação do Mestre</span></div>
+          <div class="room-entry-layout"><div><p class="eyebrow"><span class="eyebrow-line"></span> A mesa começa aqui</p><h2>Abra uma sala<br /><em>para sua lenda.</em></h2><p>Crie uma sala, compartilhe o código com os jogadores e acompanhe cada ficha enquanto a aventura acontece.</p></div><form id="master-room-form" class="room-form"><label for="master-room-name">Nome da mesa</label><input id="master-room-name" type="text" maxlength="80" placeholder="Ex.: As cinzas de Valedouro" required /><p id="master-room-error" class="form-error"></p><button class="primary-button" type="submit"><span>Criar sala</span><span class="button-arrow">↗</span></button></form></div>
+        </section>
+
         <section class="app-layout" aria-label="Criação de personagem" hidden>
           <aside class="class-rail">
             <div class="rail-heading">
@@ -122,10 +132,10 @@
         </section>
 
         <section id="master-view" class="master-view" aria-live="polite" hidden>
-          <div class="master-toolbar"><button id="master-back-button" class="text-button" type="button"><span>←</span> Voltar ao início</button><span class="sheet-ready"><span class="status-dot"></span> Modo mestre</span></div>
-          <div class="master-header"><div><p class="eyebrow"><span class="eyebrow-line"></span> Painel da campanha</p><h2>Conduza o<br /><em>destino.</em></h2><p>Use esta visão para consultar rapidamente as cinco origens disponíveis na sua mesa. O painel de encontros e o controle de campanha podem crescer a partir daqui.</p></div><div class="master-seal">◈<small>MESTRE<br />CRISOL</small></div></div>
-          <div class="master-class-grid" id="master-class-grid"></div>
-          <div class="master-note"><span>✦</span><p><strong>Próximo capítulo:</strong> imagens das raças, encontros e ferramentas para conduzir a sessão.</p></div>
+          <div class="master-toolbar"><button id="master-back-button" class="text-button" type="button"><span>←</span> Voltar ao início</button><div class="master-toolbar-actions"><span class="sheet-ready"><span class="status-dot"></span> Sala do Mestre</span><button id="master-refresh-button" class="secondary-button" type="button">Atualizar</button></div></div>
+          <div class="master-header"><div><p class="eyebrow"><span class="eyebrow-line"></span> Painel da campanha</p><h2 id="master-room-title">Conduza o<br /><em>destino.</em></h2><p>Compartilhe o código abaixo. Os jogadores entram por ele e suas fichas aparecem aqui automaticamente.</p></div><div class="master-seal">◈<small>MESTRE<br />CRISOL</small></div></div>
+          <div class="room-code-bar"><span class="mini-label">Código da sala</span><strong id="master-room-code">------</strong><button id="copy-room-code" class="text-button" type="button">Copiar código</button></div>
+          <div class="master-room-layout"><section><div class="master-section-heading"><div><p class="eyebrow">Jogadores conectados</p><h3 id="master-player-count">0 jogadores</h3></div><span id="master-sync-status" class="inventory-hint">Sincronizando...</span></div><div class="master-class-grid" id="master-class-grid"></div></section><aside id="master-player-detail" class="master-player-detail"><div class="master-detail-empty"><span>✦</span><p>Selecione um jogador para consultar a ficha.</p></div></aside></div>
         </section>
 
         <section id="sheet-view" class="sheet-view" aria-live="polite" hidden>

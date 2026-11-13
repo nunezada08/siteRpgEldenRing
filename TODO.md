@@ -62,3 +62,11 @@
   - Depois do uso, o botão fica bloqueado por 30 minutos.
   - Um contador regressivo mostra o tempo restante até a habilidade ficar pronta novamente.
   - O cooldown continua correto mesmo se a página for recarregada no mesmo navegador.
+
+- [x] **Salas compartilhadas entre Mestre e Jogadores**
+  - O Mestre pode criar uma sala e receber um código para compartilhar.
+  - O Jogador pode clicar em entrar na sala do Mestre e informar nome e código.
+  - Ao entrar, o Jogador acessa a escolha de classe e criação da ficha vinculadas à sala.
+  - O Mestre consegue ver todos os jogadores conectados à sala.
+  - O Mestre consegue abrir e consultar a ficha de cada jogador.
+  - Fichas e estado da sala ficam persistidos em banco e sincronizados automaticamente.
