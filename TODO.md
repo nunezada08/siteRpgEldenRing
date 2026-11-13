@@ -39,6 +39,15 @@
   - O sistema bloqueia o cadastro quando a capacidade máxima de magias ou feitiços foi atingida.
   - A capacidade alterada do cajado ou selo é aplicada imediatamente ao limite.
 
+- [x] **Lesões de combate**
+  - A ficha possui uma seção Lesões com registro de olho, perna ou braço.
+  - Cada lesão pode ser Leve, Grave ou Permanente.
+  - Lesão no olho aplica -4 nos testes de Foco e Percepção.
+  - Lesão na perna aplica -4 nos testes de Iniciativa e Agilidade.
+  - Lesão no braço aplica -4 no teste de Força e no dano da arma.
+  - Lesão leve mostra Cura suave; lesão grave mostra que precisa achar alguém específico; lesão permanente mostra que não tem cura.
+  - Lesões leves e graves podem ser marcadas como curadas; permanentes permanecem sem opção de remoção.
+
 - [x] **Ficha final pronta para consulta**
   - O jogador informa nome e idade.
   - A ficha combina dados pessoais, classe, atributos, status, level, XP e conteúdo predefinido da classe.

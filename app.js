@@ -34,6 +34,16 @@ const classes = [
 const attributes = ['Força', 'Agilidade', 'Percepção', 'Foco', 'Furtividade', 'Iniciativa'];
 const state = { selectedClass: classes[0], allocation: Object.fromEntries(attributes.map((attribute) => [attribute, 1])) };
 let playerCharacter = null;
+const injuryCatalog = {
+  eye: { label: 'Lesão no olho', effect: '-4 nos testes de Foco e Percepção' },
+  leg: { label: 'Lesão na perna', effect: '-4 nos testes de Iniciativa e Agilidade' },
+  arm: { label: 'Lesão no braço', effect: '-4 no teste de Força e no dano da arma' }
+};
+const severityCatalog = {
+  light: { label: 'Leve', cure: 'Cura suave', className: 'light' },
+  grave: { label: 'Grave', cure: 'Precisa achar alguém específico', className: 'grave' },
+  permanent: { label: 'Permanente', cure: 'Não tem cura', className: 'permanent' }
+};
 
 const $ = (selector) => document.querySelector(selector);
 const classList = $('#class-list');
@@ -259,6 +269,29 @@ function renderInventory() {
   });
 }
 
+function renderInjuryPreview() {
+  const body = injuryCatalog[$('#injury-body').value];
+  const severity = severityCatalog[$('#injury-severity').value];
+  $('#injury-preview').innerHTML = `<strong>${body.label}</strong><span>${body.effect}</span><small>${severity.label} · ${severity.cure}</small>`;
+}
+
+function renderInjuries() {
+  const injuries = playerCharacter.injuries;
+  $('#injury-hint').textContent = injuries.length ? `${injuries.length} lesão${injuries.length === 1 ? '' : 'ões'} registrada${injuries.length === 1 ? '' : 's'}` : 'Nenhuma lesão registrada';
+  $('#sheet-injuries').innerHTML = injuries.length ? injuries.map((injury) => {
+    const body = injuryCatalog[injury.body];
+    const severity = severityCatalog[injury.severity];
+    const cureAction = injury.severity === 'permanent' ? '<span class="injury-no-cure">Sem cura</span>' : `<button class="cure-injury" type="button" data-injury-id="${injury.id}">Marcar como curada</button>`;
+    return `<article class="injury-card ${severity.className}"><div class="injury-mark">!</div><div class="injury-copy"><div><strong>${body.label}</strong><span class="injury-severity">${severity.label}</span></div><p>${body.effect}</p><small>${severity.cure}</small></div>${cureAction}</article>`;
+  }).join('') : '<div class="injury-empty"><span>✦</span><p>Nenhuma marca registrada. Um crítico de boss pode mudar isso.</p></div>';
+  $('#sheet-injuries').querySelectorAll('.cure-injury').forEach((button) => {
+    button.addEventListener('click', () => {
+      playerCharacter.injuries = playerCharacter.injuries.filter((injury) => injury.id !== Number(button.dataset.injuryId));
+      renderInjuries();
+    });
+  });
+}
+
 function renderSheet(characterName, age) {
   const characterClass = state.selectedClass;
   const currentLife = playerCharacter.status.Vitalidade * 2;
@@ -270,6 +303,7 @@ function renderSheet(characterName, age) {
   renderProgression();
   renderStatusGrid();
   renderInventory();
+  renderInjuries();
   $('#sheet-attributes').innerHTML = attributes.map((attribute) => `<div class="sheet-attribute"><span>${attribute}</span><strong>${state.allocation[attribute]}</strong><small>${state.allocation[attribute]} dado${state.allocation[attribute] === 1 ? '' : 's'} por teste</small></div>`).join('');
   $('#sheet-class-content').innerHTML = `<div class="sheet-section"><h4>Habilidade ativa · ${characterClass.ability.cooldown}</h4><p><strong>${characterClass.ability.title}.</strong> ${characterClass.ability.description}</p></div>`;
 }
@@ -288,6 +322,7 @@ form.addEventListener('submit', (event) => {
     xp: 0,
     pendingLevelUps: 0,
     status: Object.fromEntries(Object.entries(state.selectedClass.stats).map(([label, value]) => [label, typeof value === 'number' ? value : 0])),
+    injuries: [],
     classId: state.selectedClass.id,
     inventory: [...state.selectedClass.equipment.map((item) => ({ ...item, dice: parseDice(item.detail), spellSlots: parseSpellSlots(item.detail) })), ...state.selectedClass.spells.map((spell) => ({ type: 'Magia', name: spell.name, detail: spell.detail, dice: parseDice(spell.detail) })), { type: 'Armadura', name: 'Armadura da classe', detail: state.selectedClass.armor, dice: null, armor: parseArmor(state.selectedClass.armor) }]
   };
@@ -354,6 +389,24 @@ $('#spell-form').addEventListener('submit', (event) => {
   playerCharacter.inventory.push({ type: 'Magia', name, detail: `${dice.count}${dice.type} dano`, dice });
   $('#spell-modal').hidden = true;
   renderInventory();
+});
+
+$('#add-injury-button').addEventListener('click', () => {
+  $('#injury-body').value = 'eye';
+  $('#injury-severity').value = 'light';
+  $('#injury-error').textContent = '';
+  renderInjuryPreview();
+  $('#injury-modal').hidden = false;
+});
+
+$('#injury-body').addEventListener('change', renderInjuryPreview);
+$('#injury-severity').addEventListener('change', renderInjuryPreview);
+
+$('#injury-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  playerCharacter.injuries.push({ id: Date.now(), body: $('#injury-body').value, severity: $('#injury-severity').value });
+  $('#injury-modal').hidden = true;
+  renderInjuries();
 });
 
 function renderMasterGrid() {
