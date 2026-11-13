@@ -80,7 +80,28 @@ async function handleApi(req, res, url) {
     }
     if (req.method === 'PUT' && roomMatch[2]) {
       const body = await parseBody(req);
-      const [result] = await pool.query('UPDATE room_players SET name = ?, sheet_json = ?, last_seen = CURRENT_TIMESTAMP WHERE room_id = ? AND player_token = ?', [safeName(body.name), JSON.stringify(body.sheet || null), room.id, roomMatch[2]]);
+      const incoming = body.sheet || {};
+      const [currentRows] = await pool.query('SELECT sheet_json FROM room_players WHERE room_id = ? AND player_token = ? LIMIT 1', [room.id, roomMatch[2]]);
+      const previous = currentRows[0]?.sheet_json ? (typeof currentRows[0].sheet_json === 'string' ? JSON.parse(currentRows[0].sheet_json) : currentRows[0].sheet_json) : null;
+      let nextSheet = incoming;
+      if (previous) {
+        const previousLevel = Number(previous.level) || 1;
+        const nextLevel = Number(incoming.level) || previousLevel;
+        const previousPending = Number(previous.pendingLevelUps) || 0;
+        const nextPending = Number(incoming.pendingLevelUps) || 0;
+        const levelDelta = nextLevel - previousLevel;
+        const statusChanges = Object.keys(previous.status || {}).map((label) => (Number(incoming.status?.[label]) || 0) - (Number(previous.status?.[label]) || 0));
+        const validStatusUpgrade = levelDelta >= 0 && nextPending === previousPending - levelDelta && statusChanges.every((change) => change >= 0) && statusChanges.reduce((sum, change) => sum + change, 0) === levelDelta;
+        if (!validStatusUpgrade) return fail(res, 403, 'A evolução de status precisa ser feita pelo Jogador ao subir de level.');
+        nextSheet = { ...previous, name: safeName(body.name, previous.name), level: nextLevel, pendingLevelUps: nextPending, status: incoming.status || previous.status };
+        const previousUlt = Number(previous.ultUsedAt) || 0;
+        const incomingUlt = Number(incoming.ultUsedAt) || previousUlt;
+        if (incomingUlt !== previousUlt) {
+          if (previousUlt && Date.now() - previousUlt < 30 * 60 * 1000) return fail(res, 403, 'A Ult ainda está em cooldown.');
+          nextSheet.ultUsedAt = Date.now();
+        }
+      }
+      const [result] = await pool.query('UPDATE room_players SET name = ?, sheet_json = ?, last_seen = CURRENT_TIMESTAMP WHERE room_id = ? AND player_token = ?', [safeName(body.name, nextSheet.name), JSON.stringify(nextSheet), room.id, roomMatch[2]]);
       if (!result.affectedRows) return fail(res, 404, 'Jogador não encontrado.');
       return ok(res, { saved: true });
     }
