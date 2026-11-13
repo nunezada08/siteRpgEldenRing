@@ -74,6 +74,21 @@ async function handleApi(req, res, url) {
     }
     if (req.method === 'PATCH' && roomMatch[2] && role === 'master') {
       const body = await parseBody(req);
+      const [currentRows] = await pool.query('SELECT sheet_json FROM room_players WHERE room_id = ? AND player_token = ? LIMIT 1', [room.id, roomMatch[2]]);
+      const previous = currentRows[0]?.sheet_json ? (typeof currentRows[0].sheet_json === 'string' ? JSON.parse(currentRows[0].sheet_json) : currentRows[0].sheet_json) : null;
+      const incoming = body.sheet || {};
+      
+      // Verify only master can modify level, status, and pendingLevelUps
+      if (previous) {
+        const previousLevel = Number(previous.level) || 1;
+        const nextLevel = Number(incoming.level) || previousLevel;
+        const previousPending = Number(previous.pendingLevelUps) || 0;
+        const nextPending = Number(incoming.pendingLevelUps) || 0;
+        const levelDelta = nextLevel - previousLevel;
+        const validLevelState = levelDelta === 0 && nextPending === previousPending;
+        if (!validLevelState) return fail(res, 403, 'Somente o Mestre pode alterar level e status.');
+      }
+      
       const [result] = await pool.query('UPDATE room_players SET sheet_json = ? WHERE room_id = ? AND id = ?', [JSON.stringify(body.sheet || null), room.id, Number(roomMatch[2])]);
       if (!result.affectedRows) return fail(res, 404, 'Jogador não encontrado.');
       return ok(res, { saved: true });

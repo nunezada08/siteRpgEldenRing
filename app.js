@@ -251,6 +251,11 @@ function renderProgression() {
 }
 
 function renderLevelUpOptions() {
+  // Players cannot modify status - only masters can
+  if (roomSession.role !== 'master') {
+    $('#status-upgrade-options').innerHTML = '';
+    return;
+  }
   $('#status-upgrade-options').innerHTML = Object.entries(playerCharacter.status).map(([label, value]) => `<button class="status-upgrade-option" type="button" data-status="${label}"><span class="upgrade-symbol">＋</span><span><strong>${label}</strong><small>${value} → ${value + 1}</small></span><b>Escolher</b></button>`).join('');
   $('#status-upgrade-options').querySelectorAll('.status-upgrade-option').forEach((button) => {
     button.addEventListener('click', () => {
@@ -269,6 +274,8 @@ function renderLevelUpOptions() {
 }
 
 function openLevelUpModal() {
+  // Players cannot open the level-up modal
+  if (roomSession.role !== 'master') return;
   renderLevelUpOptions();
   $('#level-up-modal').hidden = false;
 }
