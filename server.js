@@ -90,10 +90,9 @@ async function handleApi(req, res, url) {
         const previousPending = Number(previous.pendingLevelUps) || 0;
         const nextPending = Number(incoming.pendingLevelUps) || 0;
         const levelDelta = nextLevel - previousLevel;
-        const statusChanges = Object.keys(previous.status || {}).map((label) => (Number(incoming.status?.[label]) || 0) - (Number(previous.status?.[label]) || 0));
-        const validStatusUpgrade = levelDelta >= 0 && nextPending === previousPending - levelDelta && statusChanges.every((change) => change >= 0) && statusChanges.reduce((sum, change) => sum + change, 0) === levelDelta;
-        if (!validStatusUpgrade) return fail(res, 403, 'A evolução de status precisa ser feita pelo Jogador ao subir de level.');
-        nextSheet = { ...previous, name: safeName(body.name, previous.name), level: nextLevel, pendingLevelUps: nextPending, status: incoming.status || previous.status };
+        const validLevelState = levelDelta === 0 && nextPending === previousPending;
+        if (!validLevelState) return fail(res, 403, 'Somente o Mestre pode alterar level e status.');
+        nextSheet = { ...previous, name: safeName(body.name, previous.name) };
         const previousUlt = Number(previous.ultUsedAt) || 0;
         const incomingUlt = Number(incoming.ultUsedAt) || previousUlt;
         if (incomingUlt !== previousUlt) {

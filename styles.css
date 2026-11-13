@@ -332,3 +332,5 @@ body { font-size: 16px; }
 @media (max-width: 760px) { .master-detail-header-actions { align-items: flex-start; flex-direction: row; justify-content: space-between; width: 100%; } }
 
 .site-version { bottom: 16px; color: rgba(214,204,174,.62); font: 10px var(--mono); left: 18px; letter-spacing: .14em; position: fixed; text-transform: uppercase; z-index: 20; }
+
+.master-detail-values label { align-items: center; display: inline-flex; gap: 5px; }.master-sheet-number { background: var(--panel-3); border: 1px solid var(--line-bright); color: var(--gold-bright); font: 11px var(--mono); padding: 4px; width: 48px; }
